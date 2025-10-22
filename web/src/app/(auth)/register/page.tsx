@@ -40,7 +40,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setError(null);
 
-    // Validation
+    // Validation - only check non-security-sensitive validations on client
     if (!practiceId) {
       setError("Please select a practice");
       return;
@@ -51,20 +51,8 @@ export default function RegisterPage() {
       return;
     }
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
-      return;
-    }
-
-    // Check password complexity
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasDigit = /\d/.test(password);
-
-    if (!hasUpperCase || !hasLowerCase || !hasDigit) {
-      setError("Password must contain at least one uppercase letter, one lowercase letter, and one number");
-      return;
-    }
+    // Password strength validation happens on server side only
+    // This prevents exposing password policy to potential attackers
 
     setIsLoading(true);
 

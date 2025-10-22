@@ -17,14 +17,20 @@ export const signInSchema = z.object({
     .email('Invalid email address'),
   password: z
     .string()
-    .min(1, 'Password is required')
-    .min(8, 'Password must be at least 8 characters'),
+    .min(1, 'Password is required'),
 })
 
 export type SignInInput = z.infer<typeof signInSchema>
 
 /**
  * Sign up schema
+ *
+ * Security Note: Password validation uses generic error messages to avoid
+ * exposing password policy to potential attackers. Actual requirements:
+ * - Minimum 8 characters
+ * - At least one uppercase letter
+ * - At least one lowercase letter
+ * - At least one digit
  */
 export const signUpSchema = z.object({
   email: z
@@ -34,10 +40,10 @@ export const signUpSchema = z.object({
   password: z
     .string()
     .min(1, 'Password is required')
-    .min(8, 'Password must be at least 8 characters')
+    .min(8, 'Password does not meet security requirements')
     .regex(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-      'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+      'Password does not meet security requirements'
     ),
   confirmPassword: z.string().min(1, 'Please confirm your password'),
   fullName: z
@@ -68,6 +74,9 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>
 
 /**
  * Update password schema
+ *
+ * Security Note: Password validation uses generic error messages to avoid
+ * exposing password policy to potential attackers.
  */
 export const updatePasswordSchema = z.object({
   currentPassword: z
@@ -76,10 +85,10 @@ export const updatePasswordSchema = z.object({
   newPassword: z
     .string()
     .min(1, 'New password is required')
-    .min(8, 'Password must be at least 8 characters')
+    .min(8, 'Password does not meet security requirements')
     .regex(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-      'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+      'Password does not meet security requirements'
     ),
   confirmPassword: z.string().min(1, 'Please confirm your password'),
 }).refine((data) => data.newPassword === data.confirmPassword, {
