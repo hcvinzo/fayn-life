@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signUp, getPractices } from "../actions";
+import { authApi } from "@/lib/api/auth-api";
+import { practiceApi } from "@/lib/api/practice-api";
 
 /**
  * Register page
  * Allows new users to create an account
+ *
+ * Now using clean architecture - calls API client instead of server actions
  */
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -17,12 +21,17 @@ export default function RegisterPage() {
   const [practices, setPractices] = useState<Array<{ id: string; name: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     // Fetch practices on component mount
     const fetchPractices = async () => {
-      const data = await getPractices();
-      setPractices(data);
+      try {
+        const data = await practiceApi.getPublic();
+        setPractices(data);
+      } catch (err) {
+        console.error("Failed to fetch practices:", err);
+      }
     };
     fetchPractices();
   }, []);
@@ -42,27 +51,37 @@ export default function RegisterPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+
+    // Check password complexity
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasDigit = /\d/.test(password);
+
+    if (!hasUpperCase || !hasLowerCase || !hasDigit) {
+      setError("Password must contain at least one uppercase letter, one lowercase letter, and one number");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("email", email);
-      formData.append("password", password);
-      formData.append("fullName", fullName);
-      formData.append("practiceId", practiceId);
+      // Use API client instead of server action
+      await authApi.signUp({
+        email,
+        password,
+        confirmPassword,
+        fullName,
+        practiceId,
+        role: "practitioner",
+      });
 
-      const result = await signUp(formData);
-
-      if (result?.error) {
-        setError(result.error);
-        setIsLoading(false);
-      }
-      // If successful, user will be redirected
+      // Redirect on success
+      router.push("/dashboard");
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sign up");
       setIsLoading(false);

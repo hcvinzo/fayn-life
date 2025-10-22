@@ -91,3 +91,13 @@ export class InternalServerError extends AppError {
     super(message, 500, 'INTERNAL_ERROR')
   }
 }
+
+/**
+ * Authentication Error (401)
+ * Thrown when authentication operations fail
+ */
+export class AuthError extends AppError {
+  constructor(message: string = 'Authentication failed') {
+    super(message, 401, 'AUTH_ERROR')
+  }
+}

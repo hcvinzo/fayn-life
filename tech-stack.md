@@ -325,6 +325,121 @@ pnpm start
 
 ## Architecture Decisions
 
+### Clean Architecture Implementation
+
+**fayn.life** implements a **clean architecture** pattern with strict layer separation for maintainability, testability, and scalability. See [`docs/CLEAN_ARCHITECTURE.md`](/docs/CLEAN_ARCHITECTURE.md) for comprehensive details.
+
+#### Layer Structure
+
+```
+Frontend Components (app/)
+    ↓ HTTP Requests (fetch)
+Frontend API Client (lib/api/)
+    ↓ HTTP POST/GET/PUT/DELETE
+API Routes (app/api/)
+    ↓ Function Calls
+Services (lib/services/)
+    ↓ Function Calls
+Repositories (lib/repositories/)
+    ↓ SQL Queries
+Database Client (lib/db/) → Supabase PostgreSQL
+```
+
+#### Architecture Principles
+
+1. **Separation of Concerns**: Each layer has a single, well-defined responsibility
+2. **Dependency Rule**: Inner layers never depend on outer layers
+3. **Type Safety**: Full TypeScript coverage across all layers
+4. **Testability**: Each layer can be tested independently
+5. **No Direct Database Access**: Frontend NEVER imports Supabase directly
+
+#### Implementation Status
+
+✅ **Completed Entities**:
+- **Authentication** - Full clean architecture with API routes and clients
+- **Practice** - CRUD operations with validation and authorization
+- **Client** - Complete client management with filtering and stats
+- **Appointment** - Scheduling with conflict detection and status management
+
+#### Layer Responsibilities
+
+**Frontend Components** (`app/`)
+- User interface and interaction
+- State management
+- Form handling
+- ONLY uses API clients (never services or repositories)
+
+**API Clients** (`lib/api/`)
+- Type-safe HTTP methods (GET, POST, PUT, DELETE)
+- Request/response formatting
+- Error handling
+- Examples: `authApi`, `clientApi`, `appointmentApi`, `practiceApi`
+
+**API Routes** (`app/api/`)
+- HTTP endpoint handling
+- Request validation
+- Authentication/authorization checks
+- Calls service layer
+- Returns standardized responses
+
+**Services** (`lib/services/`)
+- Business logic and validation
+- Authorization rules
+- Data transformation
+- Orchestrates repository calls
+- Returns `ServiceResult<T>` with success/error
+
+**Repositories** (`lib/repositories/`)
+- Database operations (CRUD)
+- Query building
+- Extends `BaseRepository<T>`
+- Throws typed errors (DatabaseError, NotFoundError)
+- Never contains business logic
+
+**Database Client** (`lib/db/`)
+- Supabase client initialization
+- Connection management
+- Type definitions
+
+#### Key Files
+
+**Base Repository**
+- [`lib/repositories/base-repository.ts`](/web/src/lib/repositories/base-repository.ts)
+- Generic CRUD operations: `findAll`, `findById`, `create`, `update`, `delete`, `count`
+
+**API Client Base**
+- [`lib/api/client.ts`](/web/src/lib/api/client.ts)
+- HTTP wrapper with error handling and type-safe responses
+
+**Response Utilities**
+- [`lib/utils/response.ts`](/web/src/lib/utils/response.ts)
+- Standardized API responses: `successResponse`, `handleApiError`
+
+**Error Types**
+- [`lib/utils/errors.ts`](/web/src/lib/utils/errors.ts)
+- Custom error classes: `ValidationError`, `NotFoundError`, `AuthorizationError`, `DatabaseError`
+
+#### Validation Strategy
+
+- **Zod schemas** in `lib/validators/` for input validation
+- **Type inference** from schemas for TypeScript types
+- **Service layer** performs validation before database operations
+- **Custom validation** for business rules (e.g., no duplicate emails)
+
+#### Example Flow: Creating a Client
+
+```typescript
+// 1. Frontend Component
+import { clientApi } from '@/lib/api/client-api'
+await clientApi.create({ first_name: 'John', last_name: 'Doe', ... })
+
+// 2. API Client makes HTTP POST to /api/clients
+// 3. API Route receives request, validates auth, extracts practice_id
+// 4. Service validates input with Zod, checks business rules
+// 5. Repository performs INSERT into database
+// 6. Response flows back up through layers to frontend
+```
+
 ### Why This Stack?
 
 **Next.js + React**
@@ -346,11 +461,12 @@ pnpm start
 - PostgreSQL power with modern API
 - Cost-effective for MVP
 
-**Monorepo Structure**
-- Share types and utilities
-- Consistent tooling
-- Easier dependency management
-- Future scalability for mobile app
+**Clean Architecture**
+- Maintainable and scalable codebase
+- Easy to test each layer independently
+- Loose coupling enables technology swaps
+- Clear boundaries and responsibilities
+- Enterprise-grade code organization
 
 ---
 

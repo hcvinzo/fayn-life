@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { resetPassword } from "../actions";
+import { authApi } from "@/lib/api/auth-api";
 
 /**
  * Forgot Password page
  * Allows users to request a password reset email
+ *
+ * Now using clean architecture - calls API client instead of server actions
  */
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -21,17 +23,11 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("email", email);
+      // Use API client instead of server action
+      await authApi.resetPassword(email);
 
-      const result = await resetPassword(formData);
-
-      if (result?.error) {
-        setError(result.error);
-      } else if (result?.success) {
-        setSuccess(true);
-        setEmail("");
-      }
+      setSuccess(true);
+      setEmail("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send reset email");
     } finally {

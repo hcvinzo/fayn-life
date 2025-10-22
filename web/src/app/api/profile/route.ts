@@ -3,30 +3,15 @@
  *
  * GET /api/profile - Get current user's profile
  * PUT /api/profile - Update current user's profile
+ *
+ * Now using clean architecture with auth service layer.
+ * Direct Supabase calls have been abstracted away.
  */
 
 import { NextRequest } from 'next/server'
 import { profileService } from '@/lib/services/profile-service'
+import { serverAuthService } from '@/lib/services/auth-service'
 import { successResponse, handleApiError } from '@/lib/utils/response'
-import { createClient } from '@/lib/supabase/server'
-import { UnauthorizedError } from '@/lib/utils/errors'
-
-/**
- * Get the current authenticated user from the request
- */
-async function getCurrentUser(request: NextRequest) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-
-  if (error || !user) {
-    throw new UnauthorizedError('Authentication required')
-  }
-
-  return user
-}
 
 /**
  * GET /api/profile
@@ -34,7 +19,7 @@ async function getCurrentUser(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser(request)
+    const user = await serverAuthService.getCurrentUser()
     const profile = await profileService.getProfile(user.id, user.id)
 
     return successResponse(profile)
@@ -49,7 +34,7 @@ export async function GET(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const user = await getCurrentUser(request)
+    const user = await serverAuthService.getCurrentUser()
     const body = await request.json()
 
     const profile = await profileService.updateProfile(user.id, body, user.id)

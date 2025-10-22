@@ -1,18 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signIn } from "../actions";
+import { authApi } from "@/lib/api/auth-api";
 
 /**
  * Login page
  * Allows users to sign in with email and password
+ *
+ * Now using clean architecture - calls API client instead of server actions
  */
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,17 +24,12 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("email", email);
-      formData.append("password", password);
+      // Use API client instead of server action
+      await authApi.signIn(email, password);
 
-      const result = await signIn(formData);
-
-      if (result?.error) {
-        setError(result.error);
-        setIsLoading(false);
-      }
-      // If successful, user will be redirected
+      // Redirect on success
+      router.push("/dashboard");
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sign in");
       setIsLoading(false);

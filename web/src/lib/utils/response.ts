@@ -78,9 +78,10 @@ export function errorResponse(
  * Handle API errors and convert them to appropriate HTTP responses
  *
  * @param error - The error to handle
+ * @param defaultStatus - Default HTTP status code if error doesn't specify one
  * @returns NextResponse with appropriate error format and status code
  */
-export function handleApiError(error: unknown): NextResponse<ErrorResponse> {
+export function handleApiError(error: unknown, defaultStatus?: number): NextResponse<ErrorResponse> {
   // Log error for debugging (in production, use proper logging service)
   console.error('API Error:', error)
 
@@ -108,11 +109,11 @@ export function handleApiError(error: unknown): NextResponse<ErrorResponse> {
     const message =
       process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
 
-    return errorResponse(message, 'INTERNAL_ERROR', 500)
+    return errorResponse(message, 'INTERNAL_ERROR', defaultStatus || 500)
   }
 
   // Handle unknown error types
-  return errorResponse('An unexpected error occurred', 'UNKNOWN_ERROR', 500)
+  return errorResponse('An unexpected error occurred', 'UNKNOWN_ERROR', defaultStatus || 500)
 }
 
 /**
