@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/hooks/use-auth";
+import { signIn } from "../actions";
 
 /**
  * Login page
@@ -13,7 +13,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,10 +20,19 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await signIn(email, password);
+      const formData = new FormData();
+      formData.append("email", email);
+      formData.append("password", password);
+
+      const result = await signIn(formData);
+
+      if (result?.error) {
+        setError(result.error);
+        setIsLoading(false);
+      }
+      // If successful, user will be redirected
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sign in");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -76,6 +84,15 @@ export default function LoginPage() {
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             placeholder="••••••••"
           />
+        </div>
+
+        <div className="flex items-center justify-end">
+          <Link
+            href="/forgot-password"
+            className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
+          >
+            Forgot password?
+          </Link>
         </div>
 
         <button

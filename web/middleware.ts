@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/login", "/register"];
+  const publicRoutes = ["/login", "/register", "/forgot-password"];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
   // Auth routes (login, register) - redirect to dashboard if already logged in

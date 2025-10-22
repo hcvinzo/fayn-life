@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useAuth } from "@/hooks/use-auth";
+import { signUp, getPractices } from "../actions";
 
 /**
  * Register page
@@ -13,15 +13,30 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [practiceId, setPracticeId] = useState("");
+  const [practices, setPractices] = useState<Array<{ id: string; name: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { signUp } = useAuth();
+
+  useEffect(() => {
+    // Fetch practices on component mount
+    const fetchPractices = async () => {
+      const data = await getPractices();
+      setPractices(data);
+    };
+    fetchPractices();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     // Validation
+    if (!practiceId) {
+      setError("Please select a practice");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -35,10 +50,21 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      await signUp(email, password, fullName);
+      const formData = new FormData();
+      formData.append("email", email);
+      formData.append("password", password);
+      formData.append("fullName", fullName);
+      formData.append("practiceId", practiceId);
+
+      const result = await signUp(formData);
+
+      if (result?.error) {
+        setError(result.error);
+        setIsLoading(false);
+      }
+      // If successful, user will be redirected
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sign up");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -90,6 +116,29 @@ export default function RegisterPage() {
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             placeholder="you@example.com"
           />
+        </div>
+
+        <div>
+          <label
+            htmlFor="practice"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            Practice
+          </label>
+          <select
+            id="practice"
+            value={practiceId}
+            onChange={(e) => setPracticeId(e.target.value)}
+            required
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+          >
+            <option value="">Select a practice</option>
+            {practices.map((practice) => (
+              <option key={practice.id} value={practice.id}>
+                {practice.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
