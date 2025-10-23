@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { clientAuthService } from "@/lib/services/auth-service";
+import { authApi } from "@/lib/api/auth-api";
+import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import type { Profile } from "@/types/auth";
 
@@ -10,8 +11,10 @@ import type { Profile } from "@/types/auth";
  * Custom hook for authentication management
  * Provides user state, profile data, and auth methods
  *
- * Now using clean architecture with auth service layer.
- * Direct Supabase calls have been abstracted away.
+ * Following clean architecture:
+ * - Uses API client for all backend communication
+ * - Uses Supabase client ONLY for auth state listening (client-side)
+ * - No direct service or repository access from client code
  */
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -20,17 +23,12 @@ export function useAuth() {
   const router = useRouter();
 
   useEffect(() => {
-    // Get initial session
+    // Get initial session via API
     const getInitialSession = async () => {
       try {
-        const { session } = await clientAuthService.getSession();
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          // Fetch user profile
-          const profileData = await clientAuthService.getProfile(session.user.id);
-          setProfile(profileData);
-        }
+        const response = await authApi.getSession();
+        setUser(response.user);
+        setProfile(response.profile);
       } catch (error) {
         console.error("Error fetching session:", error);
       } finally {
@@ -40,39 +38,40 @@ export function useAuth() {
 
     getInitialSession();
 
-    // Listen for auth changes
-    const unsubscribe = clientAuthService.onAuthStateChange(async (authUser, session) => {
-      setUser(authUser);
+    // Listen for auth changes using Supabase client (client-side only)
+    const supabase = createClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setUser(session?.user ?? null);
 
-      if (authUser) {
-        const profileData = await clientAuthService.getProfile(authUser.id);
-        setProfile(profileData);
+      if (session?.user) {
+        // Refresh session data via API to get updated profile
+        try {
+          const response = await authApi.getSession();
+          setProfile(response.profile);
+        } catch (error) {
+          console.error("Error fetching profile:", error);
+          setProfile(null);
+        }
       } else {
         setProfile(null);
       }
     });
 
     return () => {
-      unsubscribe();
+      subscription.unsubscribe();
     };
   }, [router]);
 
   const signIn = async (email: string, password: string) => {
-    const result = await clientAuthService.signIn({
-      email,
-      password,
-    });
-
-    if (!result.success) {
-      throw new Error(result.error || "Sign in failed");
-    }
-
+    await authApi.signIn(email, password);
     router.push("/dashboard");
     router.refresh();
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const result = await clientAuthService.signUp({
+    await authApi.signUp({
       email,
       password,
       confirmPassword: password, // For hook usage, assume password is confirmed
@@ -80,17 +79,12 @@ export function useAuth() {
       practiceId: null,
       role: "practitioner",
     });
-
-    if (!result.success) {
-      throw new Error(result.error || "Sign up failed");
-    }
-
     router.push("/dashboard");
     router.refresh();
   };
 
   const signOut = async () => {
-    await clientAuthService.signOut();
+    await authApi.signOut();
     router.push("/login");
     router.refresh();
   };

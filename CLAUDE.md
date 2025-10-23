@@ -381,6 +381,22 @@ Phase 1 includes:
 
 - ⚠️ Profile creation is handled in the **service layer**, NOT by database triggers
 - ⚠️ Always use **services** from Server Components/Route Handlers (never call repositories directly)
-- ⚠️ Client Components must use **API clients** (never call services/repositories directly)
+- ⚠️ **CRITICAL:** Client Components and hooks must use **API clients** ONLY (never call services/repositories directly)
+- ⚠️ Client-side code should NEVER import from `@/lib/services/*` or `@/lib/repositories/*`
 - ⚠️ Keep business logic in **services**, not in repositories or components
 - ⚠️ Validate all inputs using **Zod schemas** before processing
+
+**Common Mistakes to Avoid:**
+
+```typescript
+// ❌ WRONG - Client component importing service
+"use client"
+import { clientAuthService } from "@/lib/services/auth-service"
+
+// ✅ CORRECT - Client component using API client
+"use client"
+import { authApi } from "@/lib/api/auth-api"
+```
+
+**Why This Matters:**
+Importing services in client code causes server-side dependencies (like `next/headers`) to be bundled into the client, resulting in build errors. Always use the API client layer from client-side code.
