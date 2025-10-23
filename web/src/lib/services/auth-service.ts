@@ -20,6 +20,7 @@ import {
   MiddlewareAuthRepository,
   type AuthResponse,
 } from '@/lib/repositories/auth-repository'
+import { profileRepository } from '@/lib/repositories/profile-repository'
 import {
   signInSchema,
   signUpSchema,
@@ -109,24 +110,40 @@ export class ServerAuthService {
 
   /**
    * Sign up with email, password, and profile data
+   * Orchestrates: 1) Create user in auth, 2) Create profile in database
    */
   async signUp(input: SignUpInput): Promise<AuthServiceResponse> {
     try {
       // Validate input
       const validated = signUpSchema.parse(input)
 
-      // Create user and profile
-      const result = await this.repository.signUp({
+      // Step 1: Create user in Supabase Auth
+      const authResult = await this.repository.signUpUser({
         email: validated.email,
         password: validated.password,
         fullName: validated.fullName,
-        practiceId: validated.practiceId || undefined,
+      })
+
+      if (!authResult.user) {
+        throw new AuthError('User creation failed')
+      }
+
+      // Step 2: Create profile in database
+      const profile = await profileRepository.createProfile({
+        id: authResult.user.id,
+        email: validated.email,
+        full_name: validated.fullName,
+        practice_id: validated.practiceId || null,
         role: validated.role || 'practitioner',
       })
 
       return {
         success: true,
-        data: result,
+        data: {
+          user: authResult.user,
+          session: authResult.session,
+          profile,
+        },
       }
     } catch (error) {
       if (error instanceof ValidationError) {
@@ -344,24 +361,40 @@ export class ClientAuthService {
 
   /**
    * Sign up with email, password, and profile data
+   * Orchestrates: 1) Create user in auth, 2) Create profile in database
    */
   async signUp(input: SignUpInput): Promise<AuthServiceResponse> {
     try {
       // Validate input
       const validated = signUpSchema.parse(input)
 
-      // Create user and profile
-      const result = await this.repository.signUp({
+      // Step 1: Create user in Supabase Auth
+      const authResult = await this.repository.signUpUser({
         email: validated.email,
         password: validated.password,
         fullName: validated.fullName,
-        practiceId: validated.practiceId || undefined,
+      })
+
+      if (!authResult.user) {
+        throw new AuthError('User creation failed')
+      }
+
+      // Step 2: Create profile in database
+      const profile = await profileRepository.createProfile({
+        id: authResult.user.id,
+        email: validated.email,
+        full_name: validated.fullName,
+        practice_id: validated.practiceId || null,
         role: validated.role || 'practitioner',
       })
 
       return {
         success: true,
-        data: result,
+        data: {
+          user: authResult.user,
+          session: authResult.session,
+          profile,
+        },
       }
     } catch (error) {
       if (error instanceof ValidationError) {

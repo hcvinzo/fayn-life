@@ -13,11 +13,9 @@
 
 import { User, Session } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
-import { AuthError, DatabaseError } from '@/lib/utils/errors'
+import { AuthError } from '@/lib/utils/errors'
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
-type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
-type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 
 export interface AuthCredentials {
   email: string
@@ -26,8 +24,6 @@ export interface AuthCredentials {
 
 export interface SignUpData extends AuthCredentials {
   fullName: string
-  practiceId?: string
-  role?: 'admin' | 'practitioner' | 'staff'
 }
 
 export interface AuthResponse {
@@ -64,8 +60,9 @@ export class ServerAuthRepository {
         throw new AuthError(error.message)
       }
 
-      // Fetch profile data
-      const profile = await this.getProfileByUserId(data.user.id)
+      // Fetch profile data using profile repository
+      const { profileRepository } = await import('./profile-repository')
+      const profile = await profileRepository.findByUserId(data.user.id)
 
       return {
         user: data.user,
@@ -81,9 +78,10 @@ export class ServerAuthRepository {
   }
 
   /**
-   * Sign up with email, password, and profile data
+   * Sign up user in Supabase Auth (does not create profile)
+   * Profile creation should be handled by the service layer
    */
-  async signUp(signUpData: SignUpData): Promise<AuthResponse> {
+  async signUpUser(signUpData: SignUpData): Promise<AuthResponse> {
     try {
       const { createClient } = await import('@/lib/supabase/server')
       const supabase = await createClient()
@@ -106,24 +104,16 @@ export class ServerAuthRepository {
         throw new AuthError('User creation failed')
       }
 
-      // Update profile (created by database trigger) with practice_id and role
-      // The trigger automatically creates a profile with id, email, and full_name
-      // We just need to update it with the additional fields
-      const profile = await this.updateProfile(data.user.id, {
-        practice_id: signUpData.practiceId || null,
-        role: signUpData.role || 'practitioner',
-      })
-
       return {
         user: data.user,
         session: data.session,
-        profile,
+        profile: null,
       }
     } catch (error) {
-      if (error instanceof AuthError || error instanceof DatabaseError) {
+      if (error instanceof AuthError) {
         throw error
       }
-      throw new AuthError('Failed to sign up')
+      throw new AuthError('Failed to sign up user')
     }
   }
 
@@ -220,103 +210,6 @@ export class ServerAuthRepository {
     }
   }
 
-  /**
-   * Get profile by user ID
-   */
-  private async getProfileByUserId(
-    userId: string
-  ): Promise<ProfileRow | null> {
-    try {
-      const { createClient } = await import('@/lib/supabase/server')
-      const supabase = await createClient()
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      if (error) {
-        // Don't throw if profile doesn't exist yet
-        if (error.code === 'PGRST116') {
-          return null
-        }
-        throw new DatabaseError(error.message)
-      }
-
-      return data
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
-      throw new DatabaseError('Failed to fetch profile')
-    }
-  }
-
-  /**
-   * Update user profile
-   */
-  private async updateProfile(
-    userId: string,
-    profileData: ProfileUpdate
-  ): Promise<ProfileRow> {
-    try {
-      const { createClient } = await import('@/lib/supabase/server')
-      const supabase = await createClient()
-
-      const { data, error } = await supabase
-        .from('profiles')
-        // @ts-ignore - Type mismatch due to ProfileUpdate vs generated types
-        .update(profileData)
-        .eq('id', userId)
-        .select()
-        .single()
-
-      if (error) {
-        throw new DatabaseError(error.message)
-      }
-
-      if (!data) {
-        throw new DatabaseError('Profile not found')
-      }
-
-      return data
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
-      throw new DatabaseError('Failed to update profile')
-    }
-  }
-
-  /**
-   * Create user profile
-   */
-  private async createProfile(
-    profileData: ProfileInsert
-  ): Promise<ProfileRow> {
-    try {
-      const { createClient } = await import('@/lib/supabase/server')
-      const supabase = await createClient()
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert(profileData as any)
-        .select()
-        .single()
-
-      if (error) {
-        throw new DatabaseError(error.message)
-      }
-
-      return data
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
-      throw new DatabaseError('Failed to create profile')
-    }
-  }
 }
 
 /**
@@ -343,8 +236,9 @@ export class ClientAuthRepository {
         throw new AuthError(error.message)
       }
 
-      // Fetch profile data
-      const profile = await this.getProfileByUserId(data.user.id)
+      // Fetch profile data using profile repository
+      const { profileRepository } = await import('./profile-repository')
+      const profile = await profileRepository.findByUserId(data.user.id)
 
       return {
         user: data.user,
@@ -360,9 +254,10 @@ export class ClientAuthRepository {
   }
 
   /**
-   * Sign up with email, password, and profile data
+   * Sign up user in Supabase Auth (does not create profile)
+   * Profile creation should be handled by the service layer
    */
-  async signUp(signUpData: SignUpData): Promise<AuthResponse> {
+  async signUpUser(signUpData: SignUpData): Promise<AuthResponse> {
     try {
       const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
@@ -385,24 +280,16 @@ export class ClientAuthRepository {
         throw new AuthError('User creation failed')
       }
 
-      // Update profile (created by database trigger) with practice_id and role
-      // The trigger automatically creates a profile with id, email, and full_name
-      // We just need to update it with the additional fields
-      const profile = await this.updateProfile(data.user.id, {
-        practice_id: signUpData.practiceId || null,
-        role: signUpData.role || 'practitioner',
-      })
-
       return {
         user: data.user,
         session: data.session,
-        profile,
+        profile: null,
       }
     } catch (error) {
-      if (error instanceof AuthError || error instanceof DatabaseError) {
+      if (error instanceof AuthError) {
         throw error
       }
-      throw new AuthError('Failed to sign up')
+      throw new AuthError('Failed to sign up user')
     }
   }
 
@@ -473,94 +360,10 @@ export class ClientAuthRepository {
    */
   async getProfileByUserId(userId: string): Promise<ProfileRow | null> {
     try {
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      if (error) {
-        // Don't throw if profile doesn't exist yet
-        if (error.code === 'PGRST116') {
-          return null
-        }
-        throw new DatabaseError(error.message)
-      }
-
-      return data
+      const { profileRepository } = await import('./profile-repository')
+      return await profileRepository.findByUserId(userId)
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
-      throw new DatabaseError('Failed to fetch profile')
-    }
-  }
-
-  /**
-   * Update user profile
-   */
-  private async updateProfile(
-    userId: string,
-    profileData: ProfileUpdate
-  ): Promise<ProfileRow> {
-    try {
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
-
-      const { data, error } = await supabase
-        .from('profiles')
-        // @ts-ignore - Type mismatch due to ProfileUpdate vs generated types
-        .update(profileData)
-        .eq('id', userId)
-        .select()
-        .single()
-
-      if (error) {
-        throw new DatabaseError(error.message)
-      }
-
-      if (!data) {
-        throw new DatabaseError('Profile not found')
-      }
-
-      return data
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
-      throw new DatabaseError('Failed to update profile')
-    }
-  }
-
-  /**
-   * Create user profile
-   */
-  private async createProfile(
-    profileData: ProfileInsert
-  ): Promise<ProfileRow> {
-    try {
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert(profileData as any)
-        .select()
-        .single()
-
-      if (error) {
-        throw new DatabaseError(error.message)
-      }
-
-      return data
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
-      throw new DatabaseError('Failed to create profile')
+      return null
     }
   }
 }
