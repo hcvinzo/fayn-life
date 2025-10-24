@@ -70,7 +70,7 @@ export default function DashboardPage() {
     return format(new Date(dateTime), "h:mm a")
   }
 
-  // Start session handler
+  // Start session handler - redirect to appointment page where session will be displayed
   async function handleStartSession(appointment: any) {
     try {
       setStartingSessions(prev => new Set(prev).add(appointment.id))
@@ -80,7 +80,8 @@ export default function DashboardPage() {
         client_id: appointment.client_id,
         practitioner_id: appointment.practitioner_id,
       })
-      router.push(`/sessions/${session.id}`)
+      // Redirect to appointment page instead of session page
+      router.push(`/appointments/${appointment.id}`)
     } catch (err) {
       console.error("Failed to start session:", err)
       alert("Failed to start session. Make sure the appointment is confirmed.")

@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { appointmentApi, type Appointment } from "@/lib/api/appointment-api";
 import { clientApi, type Client } from "@/lib/api/client-api";
 import { sessionApi } from "@/lib/api/session-api";
+import type { SessionWithDetails } from "@/types/session";
+import { SessionDetails } from "@/components/portal/session-details";
 import { ArrowLeft, Edit, XCircle, Calendar, Clock, User, FileText, PlayCircle } from "lucide-react";
 import Link from "next/link";
 
@@ -17,8 +19,7 @@ export default function AppointmentDetailsPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasSession, setHasSession] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [session, setSession] = useState<SessionWithDetails | null>(null);
   const [startingSession, setStartingSession] = useState(false);
 
   useEffect(() => {
@@ -35,12 +36,13 @@ export default function AppointmentDetailsPage() {
         try {
           const sessionData = await sessionApi.getByAppointment(id);
           if (sessionData) {
-            setHasSession(true);
-            setSessionId(sessionData.id);
+            // Load full session details with client info
+            const fullSessionData = await sessionApi.getById(sessionData.id);
+            setSession(fullSessionData);
           }
         } catch (err) {
           // No session found, which is fine
-          setHasSession(false);
+          setSession(null);
         }
       } catch (err) {
         console.error("Error:", err);
@@ -69,18 +71,55 @@ export default function AppointmentDetailsPage() {
 
     try {
       setStartingSession(true);
-      const session = await sessionApi.create({
+      const newSession = await sessionApi.create({
         practice_id: appointment.practice_id,
         appointment_id: appointment.id,
         client_id: appointment.client_id,
         practitioner_id: appointment.practitioner_id,
       });
-      router.push(`/sessions/${session.id}`);
+      // Load full session details with client info
+      const fullSessionData = await sessionApi.getById(newSession.id);
+      setSession(fullSessionData);
     } catch (err) {
       console.error("Failed to start session:", err);
       alert("Failed to start session. Make sure the appointment is confirmed.");
     } finally {
       setStartingSession(false);
+    }
+  };
+
+  const handleSessionUpdate = async () => {
+    // Reload appointment and session data
+    if (id) {
+      try {
+        const appointmentData = await appointmentApi.getById(id);
+        setAppointment(appointmentData);
+
+        if (session) {
+          const fullSessionData = await sessionApi.getById(session.id);
+          setSession(fullSessionData);
+        }
+      } catch (err) {
+        console.error("Failed to reload data:", err);
+      }
+    }
+  };
+
+  const handleSessionEnd = async () => {
+    // Reload appointment data after session ends
+    if (id) {
+      try {
+        const appointmentData = await appointmentApi.getById(id);
+        setAppointment(appointmentData);
+
+        // Reload session to show completed state
+        if (session) {
+          const fullSessionData = await sessionApi.getById(session.id);
+          setSession(fullSessionData);
+        }
+      } catch (err) {
+        console.error("Failed to reload data:", err);
+      }
     }
   };
 
@@ -109,16 +148,7 @@ export default function AppointmentDetailsPage() {
           </div>
         </div>
         <div className="flex gap-3">
-          {hasSession && sessionId && (
-            <Link
-              href={`/sessions/${sessionId}`}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              <FileText className="w-4 h-4" />
-              View Session
-            </Link>
-          )}
-          {appointment.status === "confirmed" && !hasSession && (
+          {appointment.status === "confirmed" && !session && (
             <button
               onClick={handleStartSession}
               disabled={startingSession}
@@ -206,6 +236,18 @@ export default function AppointmentDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Session Details - Show if session exists */}
+      {session && (
+        <div className="mt-8">
+          <SessionDetails
+            session={session}
+            onSessionUpdate={handleSessionUpdate}
+            onSessionEnd={handleSessionEnd}
+            showAppointmentInfo={false}
+          />
+        </div>
+      )}
     </div>
   );
 }
