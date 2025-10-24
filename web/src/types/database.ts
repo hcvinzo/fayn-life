@@ -196,6 +196,50 @@ export interface Database {
           updated_at?: string;
         };
       };
+      files: {
+        Row: {
+          id: string;
+          practice_id: string;
+          entity_type: "client_sessions" | "clients" | "appointments" | "profiles";
+          entity_id: string;
+          bucket_name: string;
+          file_path: string;
+          file_name: string;
+          file_type: string;
+          file_size: number;
+          uploaded_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          practice_id: string;
+          entity_type: "client_sessions" | "clients" | "appointments" | "profiles";
+          entity_id: string;
+          bucket_name?: string;
+          file_path: string;
+          file_name: string;
+          file_type: string;
+          file_size: number;
+          uploaded_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          practice_id?: string;
+          entity_type?: "client_sessions" | "clients" | "appointments" | "profiles";
+          entity_id?: string;
+          bucket_name?: string;
+          file_path?: string;
+          file_name?: string;
+          file_type?: string;
+          file_size?: number;
+          uploaded_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -209,6 +253,7 @@ export interface Database {
       appointment_type: "in_person" | "online";
       client_status: "active" | "inactive" | "archived";
       session_status: "in_progress" | "completed" | "cancelled";
+      entity_type: "client_sessions" | "clients" | "appointments" | "profiles";
     };
   };
 }

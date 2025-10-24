@@ -50,8 +50,11 @@ npm run type-check   # TypeScript type checking
   - `20250123000000_remove_profile_trigger.sql` - Removed auto-profile creation trigger (profiles now created in service layer)
   - `20251023000000_add_appointment_type.sql` - Added appointment_type enum and column (in_person, online)
   - `20251024000000_create_client_sessions.sql` - Added client_sessions table with session_status enum for session tracking
+  - `20251024000001_create_files_table.sql` - Added files table for polymorphic file attachments
+  - `20251024000002_create_storage_bucket.sql` - Created 'session-files' Supabase Storage bucket with RLS policies
 - To apply migrations: Run the SQL in Supabase project's SQL Editor
-- Core tables: `profiles`, `practices`, `clients`, `appointments`, `client_sessions`
+- Core tables: `profiles`, `practices`, `clients`, `appointments`, `client_sessions`, `files`
+- Storage buckets: `session-files` (for session file attachments)
 - All tables have Row Level Security (RLS) enabled with practice-based isolation
 - **Important:** Profile records are NOT auto-created by triggers. They are created explicitly in the service layer during sign-up.
 

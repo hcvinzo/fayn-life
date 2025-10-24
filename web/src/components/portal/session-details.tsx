@@ -1,8 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { sessionApi } from "@/lib/api/session-api"
+import { fileApi } from "@/lib/api/file-api"
+import { storageService } from "@/lib/services/storage-service"
 import type { SessionWithDetails, SessionAttachment } from "@/types/session"
+import type { FileRecord } from "@/types/file"
+import {
+  isAllowedFileType,
+  isValidFileSize,
+  formatFileSize,
+  getFileIcon,
+  MAX_FILE_SIZE,
+  ALLOWED_FILE_TYPES,
+} from "@/types/file"
 import { format } from "date-fns"
 import {
   ClockIcon,
@@ -12,6 +23,9 @@ import {
   CheckCircle2Icon,
   XCircleIcon,
   UploadIcon,
+  Trash2Icon,
+  DownloadIcon,
+  XIcon,
 } from "lucide-react"
 
 interface SessionDetailsProps {
@@ -35,6 +49,130 @@ export function SessionDetails({
   const [notes, setNotes] = useState(session.notes || "")
   const [saving, setSaving] = useState(false)
   const [ending, setEnding] = useState(false)
+  const [files, setFiles] = useState<FileRecord[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
+  const [dragActive, setDragActive] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Load files on mount
+  useEffect(() => {
+    loadFiles()
+  }, [session.id])
+
+  async function loadFiles() {
+    try {
+      const fileRecords = await fileApi.getFilesByEntity('client_sessions', session.id)
+      setFiles(fileRecords)
+    } catch (err) {
+      console.error('Failed to load files:', err)
+    }
+  }
+
+  async function handleFileSelect(selectedFiles: FileList | null) {
+    if (!selectedFiles || selectedFiles.length === 0) return
+
+    const validFiles: File[] = []
+    const errors: string[] = []
+
+    // Validate files
+    Array.from(selectedFiles).forEach((file) => {
+      if (!isAllowedFileType(file)) {
+        errors.push(`${file.name}: File type not allowed`)
+        return
+      }
+      if (!isValidFileSize(file)) {
+        errors.push(`${file.name}: File size exceeds ${formatFileSize(MAX_FILE_SIZE)}`)
+        return
+      }
+      validFiles.push(file)
+    })
+
+    if (errors.length > 0) {
+      alert(`Some files could not be uploaded:\n${errors.join('\n')}`)
+    }
+
+    if (validFiles.length === 0) return
+
+    // Upload files
+    setUploading(true)
+    for (const file of validFiles) {
+      try {
+        // Upload to storage
+        const { path, url } = await storageService.uploadFile(
+          file,
+          session.practice_id,
+          'client_sessions',
+          session.id
+        )
+
+        // Create file record in database
+        await fileApi.createFile({
+          practice_id: session.practice_id,
+          entity_type: 'client_sessions',
+          entity_id: session.id,
+          bucket_name: 'session-files',
+          file_path: path,
+          file_name: file.name,
+          file_type: file.type,
+          file_size: file.size,
+          uploaded_by: session.practitioner_id,
+        })
+      } catch (err) {
+        console.error(`Failed to upload ${file.name}:`, err)
+        alert(`Failed to upload ${file.name}`)
+      }
+    }
+
+    setUploading(false)
+    await loadFiles()
+  }
+
+  async function handleFileDelete(fileRecord: FileRecord) {
+    if (!confirm(`Are you sure you want to delete ${fileRecord.file_name}?`)) return
+
+    try {
+      // Delete from storage
+      await storageService.deleteFile(fileRecord.file_path)
+
+      // Delete from database
+      await fileApi.deleteFile(fileRecord.id)
+
+      // Reload files
+      await loadFiles()
+    } catch (err) {
+      console.error('Failed to delete file:', err)
+      alert('Failed to delete file')
+    }
+  }
+
+  function handleDrag(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true)
+    } else if (e.type === 'dragleave') {
+      setDragActive(false)
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileSelect(e.dataTransfer.files)
+    }
+  }
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    handleFileSelect(e.target.files)
+  }
+
+  function openFileDialog() {
+    fileInputRef.current?.click()
+  }
 
   async function handleSaveNotes() {
     try {
@@ -248,32 +386,80 @@ export function SessionDetails({
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           File Attachments
         </h3>
-        {session.attachments && session.attachments.length > 0 ? (
+
+        {/* Upload Area */}
+        {session.status === "in_progress" && (
+          <div className="mb-4">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={Object.keys(ALLOWED_FILE_TYPES).join(',')}
+              onChange={handleFileInputChange}
+              className="hidden"
+            />
+            <div
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              onClick={openFileDialog}
+              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                dragActive
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                  : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
+              } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <UploadIcon className="h-10 w-10 mx-auto mb-3 text-gray-400" />
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                {uploading ? 'Uploading...' : 'Click to upload or drag and drop'}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-500">
+                Max file size: {formatFileSize(MAX_FILE_SIZE)} • Allowed: Images, PDFs, Office files
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* File List */}
+        {files.length > 0 ? (
           <div className="space-y-2">
-            {session.attachments.map((attachment: SessionAttachment) => (
+            {files.map((file) => (
               <div
-                key={attachment.id}
+                key={file.id}
                 className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
               >
-                <div className="flex items-center gap-3">
-                  <FileTextIcon className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      {attachment.name}
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span className="text-2xl flex-shrink-0">{getFileIcon(file.file_type)}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {file.file_name}
                     </div>
                     <div className="text-xs text-gray-600 dark:text-gray-400">
-                      {(attachment.size / 1024).toFixed(2)} KB
+                      {formatFileSize(file.file_size)}
                     </div>
                   </div>
                 </div>
-                <a
-                  href={attachment.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                >
-                  Download
-                </a>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <a
+                    href={storageService.getFileUrl(file.file_path)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                    title="Download"
+                  >
+                    <DownloadIcon className="h-4 w-4" />
+                  </a>
+                  {session.status === "in_progress" && (
+                    <button
+                      onClick={() => handleFileDelete(file)}
+                      className="p-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                      title="Delete"
+                    >
+                      <Trash2Icon className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -282,7 +468,7 @@ export function SessionDetails({
             <UploadIcon className="h-12 w-12 mx-auto mb-3 text-gray-400" />
             <p>No attachments yet</p>
             {session.status === "in_progress" && (
-              <p className="text-sm mt-2">File upload feature coming soon</p>
+              <p className="text-sm mt-2">Upload files using the area above</p>
             )}
           </div>
         )}
