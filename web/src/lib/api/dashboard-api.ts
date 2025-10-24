@@ -14,6 +14,6 @@ export const dashboardApi = {
    * @returns Dashboard data with stats and appointments
    */
   async getDashboardData(): Promise<DashboardData> {
-    return apiClient.get<DashboardData>('/api/dashboard')
+    return apiClient.get<DashboardData>('/dashboard')
   },
 }

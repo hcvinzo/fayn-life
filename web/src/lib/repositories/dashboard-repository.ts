@@ -21,8 +21,9 @@ export class DashboardRepository {
       const supabase = await createClient()
       const now = new Date()
 
-      // Get start and end of today
+      // Get start and end of today (ensure proper time component)
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      todayStart.setHours(0, 0, 0, 0)
       const todayEnd = new Date(todayStart)
       todayEnd.setDate(todayEnd.getDate() + 1)
 
@@ -35,6 +36,7 @@ export class DashboardRepository {
 
       const weekEnd = new Date(weekStart)
       weekEnd.setDate(weekStart.getDate() + 7)
+      weekEnd.setHours(0, 0, 0, 0)
 
       // Count total active clients
       const { count: totalClients, error: clientError } = await supabase
@@ -67,7 +69,7 @@ export class DashboardRepository {
         .eq('practice_id', practiceId)
         .gte('start_time', todayStart.toISOString())
         .lt('start_time', todayEnd.toISOString())
-        .in('status', ['completed', 'confirmed'])
+        .or('status.eq.completed,status.eq.confirmed')
 
       if (todayFilledError) {
         throw new DatabaseError(`Failed to count today's filled appointments: ${todayFilledError.message}`, todayFilledError)
@@ -93,7 +95,7 @@ export class DashboardRepository {
         .eq('practice_id', practiceId)
         .gte('start_time', weekStart.toISOString())
         .lt('start_time', weekEnd.toISOString())
-        .in('status', ['completed', 'confirmed'])
+        .or('status.eq.completed,status.eq.confirmed')
 
       if (weekFilledError) {
         throw new DatabaseError(`Failed to count week's filled appointments: ${weekFilledError.message}`, weekFilledError)
@@ -126,8 +128,9 @@ export class DashboardRepository {
       const supabase = await createClient()
       const now = new Date()
 
-      // Get start and end of today
+      // Get start and end of today (ensure proper time component)
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      todayStart.setHours(0, 0, 0, 0)
       const todayEnd = new Date(todayStart)
       todayEnd.setDate(todayEnd.getDate() + 1)
 
@@ -169,13 +172,15 @@ export class DashboardRepository {
       const supabase = await createClient()
       const now = new Date()
 
-      // Get start of tomorrow
+      // Get start of tomorrow (ensure proper time component)
       const tomorrowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
       tomorrowStart.setDate(tomorrowStart.getDate() + 1)
+      tomorrowStart.setHours(0, 0, 0, 0)
 
       // Get end of next 7 days
       const weekEnd = new Date(tomorrowStart)
       weekEnd.setDate(tomorrowStart.getDate() + 7)
+      weekEnd.setHours(0, 0, 0, 0)
 
       const { data, error } = await supabase
         .from('appointments')
