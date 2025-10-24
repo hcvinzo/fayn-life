@@ -21,6 +21,7 @@ export type CreateAppointmentDto = {
   practitioner_id: string
   start_time: string // ISO 8601 datetime
   end_time: string // ISO 8601 datetime
+  appointment_type: 'in_person' | 'online'
   status?: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
   notes?: string | null
 }

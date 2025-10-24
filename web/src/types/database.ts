@@ -119,6 +119,7 @@ export interface Database {
           practitioner_id: string;
           start_time: string;
           end_time: string;
+          appointment_type: "in_person" | "online";
           status: "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
           notes: string | null;
           created_at: string;
@@ -131,6 +132,7 @@ export interface Database {
           practitioner_id: string;
           start_time: string;
           end_time: string;
+          appointment_type: "in_person" | "online";
           status?: "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
           notes?: string | null;
           created_at?: string;
@@ -143,6 +145,7 @@ export interface Database {
           practitioner_id?: string;
           start_time?: string;
           end_time?: string;
+          appointment_type?: "in_person" | "online";
           status?: "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
           notes?: string | null;
           created_at?: string;
@@ -159,6 +162,7 @@ export interface Database {
     Enums: {
       user_role: "admin" | "practitioner" | "staff";
       appointment_status: "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
+      appointment_type: "in_person" | "online";
       client_status: "active" | "inactive" | "archived";
     };
   };

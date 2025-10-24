@@ -69,6 +69,19 @@ class ApiClient {
         credentials: 'same-origin', // Include cookies for authentication
       })
 
+      // Handle 401 Unauthorized - session expired or user logged out
+      if (response.status === 401) {
+        // Redirect to login page
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login'
+        }
+        throw new ApiClientError(
+          'Session expired. Please log in again.',
+          401,
+          'UNAUTHORIZED'
+        )
+      }
+
       const data: SuccessResponse<T> | ErrorResponse = await response.json()
 
       // Handle error responses

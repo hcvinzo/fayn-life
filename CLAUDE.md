@@ -48,10 +48,65 @@ npm run type-check   # TypeScript type checking
 - Migration history:
   - `20240116000000_initial_schema.sql` - Initial schema with tables, RLS, indexes
   - `20250123000000_remove_profile_trigger.sql` - Removed auto-profile creation trigger (profiles now created in service layer)
+  - `20251023000000_add_appointment_type.sql` - Added appointment_type enum and column (in_person, online)
 - To apply migrations: Run the SQL in Supabase project's SQL Editor
 - Core tables: `profiles`, `practices`, `clients`, `appointments`
 - All tables have Row Level Security (RLS) enabled with practice-based isolation
 - **Important:** Profile records are NOT auto-created by triggers. They are created explicitly in the service layer during sign-up.
+
+### Recent Bug Fixes
+
+**Client Names Not Displaying in Appointment List (2025-10-23)**
+- **Issue:** Client names appeared empty/blank in the appointments list page
+- **Root Cause:** In [appointment-repository.ts](web/src/lib/repositories/appointment-repository.ts), the `findByPracticeWithClient` method used incorrect Supabase join syntax: `.select('*, client:clients(*)')`
+- **Fix:** Updated to use explicit foreign key reference with selected fields:
+  ```typescript
+  .select(`
+    *,
+    client:client_id (
+      id, first_name, last_name, email, phone, full_name
+    )
+  `)
+  ```
+- **Impact:** Client names now display correctly in the appointments list
+- **Technical Details:** Supabase requires using the foreign key column name (`client_id`) rather than the table name (`clients`) when creating aliased joins
+
+**Appointment Conflict Detection (2025-10-23)**
+- **Issue:** Creating any appointment would fail with "This time slot conflicts with an existing appointment" error, regardless of the selected date/time
+- **Root Cause:** In [appointment-repository.ts](web/src/lib/repositories/appointment-repository.ts), the `hasConflict` method was using `.or()` logic instead of AND logic for time overlap detection
+- **Fix:** Changed from `.or('start_time.lt.${endTime},end_time.gt.${startTime}')` to chained filters `.lt('start_time', endTime).gt('end_time', startTime)`
+- **Impact:** Appointment creation now works correctly and only detects actual scheduling conflicts
+- **Technical Details:** Time ranges overlap when `start_time < new_end_time AND end_time > new_start_time`. The previous OR logic would match ALL appointments instead of only overlapping ones.
+
+**Session Timeout Redirect (2025-10-23)**
+- **Issue:** When a user's session expired or they signed out, API calls would fail silently with errors logged to console, but the user would not be redirected to the login page
+- **Root Cause:** The API client in [client.ts](web/src/lib/api/client.ts) did not handle 401 Unauthorized responses, allowing authentication errors to propagate without triggering a redirect
+- **Fix:** Added 401 status code detection in the `request()` method that automatically redirects to `/login` when authentication fails:
+  ```typescript
+  // Handle 401 Unauthorized - session expired or user logged out
+  if (response.status === 401) {
+    // Redirect to login page
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    throw new ApiClientError(
+      'Session expired. Please log in again.',
+      401,
+      'UNAUTHORIZED'
+    )
+  }
+  ```
+- **Impact:** Users are now automatically redirected to the login page when their session expires or they are logged out, providing a clear user experience
+- **Technical Details:** The middleware handles server-side redirects for page navigation, but the API client now handles client-side redirects for API call authentication failures. The `typeof window !== 'undefined'` check ensures this only runs in the browser.
+
+**Appointment Form Time Field Validation Error (2025-10-23)**
+- **Issue:** When submitting the appointment form without selecting a time, users received a confusing error: "Invalid input: expected string, received undefined"
+- **Root Cause:** In [appointment-form.tsx](web/src/components/portal/appointment-form.tsx), the `time` field validation schema used `z.string().min(1)` but the field had no default value, causing it to be `undefined` when not selected
+- **Fix:** Applied two changes to handle undefined values properly:
+  1. Updated the Zod schema to include a custom error message: `z.string({ message: 'Please select a time' }).min(1, 'Please select a time')`
+  2. Added default value for time field: `time: ""` in the form's defaultValues to prevent undefined state
+- **Impact:** Users now see a clear, user-friendly error message "Please select a time" when they forget to select a time slot
+- **Technical Details:** React Hook Form with Zod requires all fields to have a defined value (even if empty string) to prevent type coercion errors. The custom message parameter provides better UX than Zod's default type error.
 
 ## Architecture
 
@@ -338,13 +393,184 @@ const { data: { user } } = await supabase.auth.getUser()
 
 Phase 1 includes:
 - ✅ Authentication (email/password) with clean architecture
-- ✅ Dashboard with statistics
-- ✅ Client management interface
-- ✅ Appointment scheduling interface
+- ✅ Practice dashboard with real-time statistics (Feature #5)
+- ✅ Client management interface (Feature #2)
+- ✅ Appointment scheduling interface (Feature #3)
+- ✅ Calendar view for appointments (Feature #4)
+- ✅ Enhanced appointment form with calendar picker (Feature #11)
+- ✅ Appointment type classification (Feature #10)
 - ✅ Settings management
-- 🚧 Calendar placeholder (in development)
 - ✅ Full database integration with Supabase
 - ✅ Clean architecture implementation (services, repositories, API clients)
+
+## Implemented Features
+
+### Client Management (Feature #2)
+Complete CRUD operations for client records with the following capabilities:
+
+**Pages:**
+- `/clients` - List all clients with search and filter (status: active/inactive/archived)
+- `/clients/new` - Create new client
+- `/clients/[id]` - View client details
+- `/clients/[id]/edit` - Edit client information
+
+**Key Components:**
+- [client-form.tsx](web/src/components/portal/client-form.tsx) - Reusable form for create/edit
+- Form validates: first_name, last_name, email, phone, date_of_birth, status, notes
+
+**Architecture Stack:**
+- API Client: [client-api.ts](web/src/lib/api/client-api.ts)
+- API Routes: [/api/clients](web/src/app/api/clients)
+- Service: [client-service.ts](web/src/lib/services/client-service.ts)
+- Repository: [client-repository.ts](web/src/lib/repositories/client-repository.ts)
+
+**Features:**
+- Real-time search with debouncing
+- Status filtering (active, inactive, archived)
+- Archive functionality (soft delete)
+- Practice-based data isolation via RLS
+- Full client profile management
+
+### Appointment Scheduling (Feature #3)
+Complete appointment management system with client linking:
+
+**Pages:**
+- `/appointments` - List all appointments with filters
+- `/appointments/new` - Schedule new appointment
+- `/appointments/[id]` - View appointment details
+- `/appointments/[id]/edit` - Edit appointment
+
+**Key Components:**
+- [appointment-form.tsx](web/src/components/portal/appointment-form.tsx) - Reusable form with shadcn/ui calendar (Features #10 & #11):
+  - Client selection dropdown (loads active clients)
+  - **Appointment type selector** (In-Person / Online) - Feature #10
+  - Duration selector (15min to 3hrs) - placed first for better UX
+  - Interactive calendar with time slot picker (9:00 AM - 6:00 PM, 15-min intervals)
+  - Prevents selecting past dates/times
+  - Auto-calculated end time display
+  - Status management
+  - Notes field
+
+**Architecture Stack:**
+- API Client: [appointment-api.ts](web/src/lib/api/appointment-api.ts)
+- API Routes: [/api/appointments](web/src/app/api/appointments)
+- Service: [appointment-service.ts](web/src/lib/services/appointment-service.ts)
+- Repository: [appointment-repository.ts](web/src/lib/repositories/appointment-repository.ts)
+
+**Features:**
+- **Appointment type classification** (In-Person/Online) - Feature #10
+- Status filtering (scheduled, confirmed, completed, cancelled, no_show)
+- Date range filtering (today, this week, this month, all)
+- Cancel appointment functionality
+- Linked to clients (shows client name with appointments)
+- Practice-based data isolation via RLS
+- Duration-based scheduling (auto-calculates end_time)
+
+**Appointment Types:**
+- `in_person` - In-person appointment at practice location
+- `online` - Virtual/online appointment (video call, phone, etc.)
+
+**Appointment Statuses:**
+- `scheduled` - Initial booking
+- `confirmed` - Client confirmed attendance
+- `completed` - Appointment finished
+- `cancelled` - Cancelled by either party
+- `no_show` - Client didn't attend
+
+**Enhanced UX (Feature #11 - Calendar Integration):**
+- Replaced separate date/time inputs with integrated shadcn/ui calendar component
+- Duration selection moved before date/time (better workflow)
+- Visual calendar with disabled past dates
+- Time slot picker (15-minute intervals, 9 AM - 6 PM)
+- Real-time appointment summary with calculated end time
+- Responsive design (side-by-side on desktop, stacked on mobile)
+
+### Calendar View (Feature #4)
+Interactive monthly calendar view of appointments:
+
+**Page:**
+- `/calendar` - Monthly calendar view showing all appointments
+
+**Key Features:**
+- **Month navigation:** Previous/Next month buttons and "Today" shortcut
+- **Full calendar grid:** 7-day week view with proper month overflow (shows trailing/leading days from adjacent months)
+- **Appointment display:**
+  - Shows up to 3 appointments per day with time and client name
+  - Color-coded by status (scheduled=blue, confirmed=green, completed=gray, cancelled=red, no_show=orange)
+  - Clickable appointment cards linking to appointment details
+  - "+X more" indicator when more than 3 appointments exist on a day
+- **Today highlighting:** Current date highlighted with blue background
+- **Status legend:** Visual reference for appointment status colors
+- **Quick access:** "New Appointment" button in header
+- **Loading states:** Graceful loading and error handling
+
+**Implementation Details:**
+- Client component using React hooks for state management
+- Fetches appointments for current month via `appointmentApi.getAll()`
+- Automatically refetches when navigating between months
+- Calendar algorithm generates proper 6-week grid (42 cells)
+- Responsive design with Tailwind CSS
+- Directly uses appointment API client (no additional repository/service needed)
+
+**Architecture:**
+- Uses existing appointment API client: [appointment-api.ts](web/src/lib/api/appointment-api.ts)
+- No new backend services needed (reuses existing appointment infrastructure)
+- Direct integration with appointment list and detail pages
+
+**UX Benefits:**
+- Visual overview of schedule at a glance
+- Easy identification of busy/available days
+- Status-based color coding for quick recognition
+- Seamless navigation to appointment details
+
+### Practice Dashboard (Feature #5)
+Real-time dashboard displaying practice statistics and upcoming appointments:
+
+**Page:**
+- `/dashboard` - Main dashboard with key metrics and appointments
+
+**Key Metrics:**
+- **Today Fill Rate:** Percentage of confirmed/completed appointments vs total scheduled for today
+- **Week Fill Rate:** Percentage of confirmed/completed appointments vs total scheduled for current week (Monday-Sunday)
+- **Total Clients:** Count of active clients in the practice
+- **Quick Stats:** Today's appointment count and weekly appointment count
+
+**Dashboard Widgets:**
+- **Today's Appointments:** Chronological list of all appointments scheduled for today
+  - Shows time range, client name, status, appointment type (in-person/online)
+  - Color-coded status badges
+  - Clickable cards linking to appointment details
+  - Empty state when no appointments scheduled
+- **Upcoming Appointments:** Mini calendar showing next 7 days of appointments
+  - Displays date, time, client name, and status
+  - Limited to 10 most recent upcoming appointments
+  - Link to full calendar view
+- **Quick Actions:** Functional buttons for common tasks
+  - New Client (links to `/clients/new`)
+  - New Appointment (links to `/appointments/new`)
+  - View Calendar (links to `/calendar`)
+
+**Architecture Stack:**
+- Types: [dashboard.ts](web/src/types/dashboard.ts)
+- API Client: [dashboard-api.ts](web/src/lib/api/dashboard-api.ts)
+- API Route: [/api/dashboard](web/src/app/api/dashboard)
+- Service: [dashboard-service.ts](web/src/lib/services/dashboard-service.ts)
+- Repository: [dashboard-repository.ts](web/src/lib/repositories/dashboard-repository.ts)
+
+**Technical Details:**
+- Client component with real-time data fetching via API
+- Parallel data loading for statistics, today's appointments, and upcoming appointments
+- Fill rates calculated as: `(confirmed + completed) / total non-cancelled * 100`
+- Week calculation: Monday (start) to Sunday (end) of current week
+- Practice-based data isolation via RLS (only shows data for user's practice)
+
+**Features:**
+- Real-time statistics with automatic calculations
+- Visual color-coded status indicators
+- Responsive grid layout (4-column on desktop, stacked on mobile)
+- Loading and error states
+- Featured "New Appointment" quick action card with gradient styling
+- Seamless navigation to related pages (appointments, clients, calendar)
 
 ## Code Style Notes
 

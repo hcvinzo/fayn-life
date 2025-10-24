@@ -16,7 +16,12 @@
       "Bash(npm uninstall:*)",
       "Bash(npm run type-check:*)",
       "Bash(find:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npx shadcn@latest add calendar:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(cat:*)",
+      "Read(//private/tmp/**)",
+      "Bash(kill:*)"
     ],
     "deny": [],
     "ask": []

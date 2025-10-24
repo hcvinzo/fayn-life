@@ -222,6 +222,7 @@ export class AppointmentService {
         practitioner_id: validatedData.practitioner_id,
         start_time: validatedData.start_time,
         end_time: validatedData.end_time,
+        appointment_type: validatedData.appointment_type,
         status: validatedData.status || 'scheduled',
         notes: validatedData.notes || null,
       })

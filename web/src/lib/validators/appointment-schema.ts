@@ -16,6 +16,7 @@ export const createAppointmentSchema = z
     practitioner_id: z.string().uuid('Invalid practitioner ID format'),
     start_time: z.string().datetime('Invalid start time format. Use ISO 8601 datetime'),
     end_time: z.string().datetime('Invalid end time format. Use ISO 8601 datetime'),
+    appointment_type: z.enum(['in_person', 'online']),
     status: z
       .enum(['scheduled', 'confirmed', 'completed', 'cancelled', 'no_show'])
       .optional()

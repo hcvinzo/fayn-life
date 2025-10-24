@@ -1,59 +1,127 @@
-import { Metadata } from "next";
-import { Plus, Filter } from "lucide-react";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Appointments",
-};
+import { Plus, Filter, Eye, Edit, XCircle } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { appointmentApi, type AppointmentWithClient, type AppointmentFilters } from "@/lib/api/appointment-api";
+import Link from "next/link";
 
 /**
  * Appointments page
  * Displays list of all appointments with filter capabilities
  */
 export default function AppointmentsPage() {
-  // Mock data for demonstration
-  const appointments = [
-    {
-      id: "1",
-      clientName: "John Smith",
-      date: "2024-01-16",
-      time: "10:00 AM",
-      duration: "60 min",
-      status: "Confirmed",
-      type: "Initial Consultation",
-    },
-    {
-      id: "2",
-      clientName: "Sarah Johnson",
-      date: "2024-01-16",
-      time: "2:00 PM",
-      duration: "45 min",
-      status: "Scheduled",
-      type: "Follow-up",
-    },
-    {
-      id: "3",
-      clientName: "Michael Brown",
-      date: "2024-01-17",
-      time: "11:30 AM",
-      duration: "60 min",
-      status: "Scheduled",
-      type: "Treatment",
-    },
-  ];
+  const [appointments, setAppointments] = useState<AppointmentWithClient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<AppointmentFilters["status"] | "all">("all");
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month">("all");
 
+  // Fetch appointments
+  const fetchAppointments = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const filters: AppointmentFilters = {
+        include_client: true,
+      };
+
+      if (statusFilter && statusFilter !== "all") {
+        filters.status = statusFilter;
+      }
+
+      // Calculate date range based on filter
+      if (dateFilter !== "all") {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        filters.start_date = today.toISOString();
+
+        if (dateFilter === "today") {
+          const endOfDay = new Date(today);
+          endOfDay.setHours(23, 59, 59, 999);
+          filters.end_date = endOfDay.toISOString();
+        } else if (dateFilter === "week") {
+          const endOfWeek = new Date(today);
+          endOfWeek.setDate(today.getDate() + 7);
+          filters.end_date = endOfWeek.toISOString();
+        } else if (dateFilter === "month") {
+          const endOfMonth = new Date(today);
+          endOfMonth.setMonth(today.getMonth() + 1);
+          filters.end_date = endOfMonth.toISOString();
+        }
+      }
+
+      const data = await appointmentApi.getAll(filters) as AppointmentWithClient[];
+      setAppointments(data);
+    } catch (err) {
+      console.error("Error fetching appointments:", err);
+      setError(err instanceof Error ? err.message : "Failed to load appointments");
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, dateFilter]);
+
+  // Fetch appointments on mount and when filters change
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
+
+  // Cancel appointment handler
+  const handleCancel = async (id: string, clientName: string) => {
+    if (!confirm(`Are you sure you want to cancel the appointment with ${clientName}?`)) {
+      return;
+    }
+
+    try {
+      await appointmentApi.cancel(id);
+      fetchAppointments(); // Refresh list
+    } catch (err) {
+      console.error("Error cancelling appointment:", err);
+      alert("Failed to cancel appointment");
+    }
+  };
+
+  // Status badge color helper
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Confirmed":
+      case "confirmed":
         return "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400";
-      case "Scheduled":
+      case "scheduled":
         return "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400";
-      case "Completed":
+      case "completed":
         return "bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400";
-      case "Cancelled":
+      case "cancelled":
         return "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400";
+      case "no_show":
+        return "bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400";
       default:
         return "bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400";
     }
+  };
+
+  // Format date and time
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return {
+      date: date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }),
+      time: date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+  };
+
+  // Calculate duration
+  const calculateDuration = (startTime: string, endTime: string) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const durationMinutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
+    return `${durationMinutes} min`;
   };
 
   return (
@@ -67,113 +135,181 @@ export default function AppointmentsPage() {
             Manage your appointment schedule
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        <Link
+          href="/appointments/new"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
           <Plus className="w-4 h-4" />
           New Appointment
-        </button>
+        </Link>
       </div>
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center gap-4">
           <Filter className="w-5 h-5 text-gray-400" />
-          <select className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-            <option>All Status</option>
-            <option>Scheduled</option>
-            <option>Confirmed</option>
-            <option>Completed</option>
-            <option>Cancelled</option>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          >
+            <option value="all">All Status</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="no_show">No Show</option>
           </select>
-          <select className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-            <option>All Dates</option>
-            <option>Today</option>
-            <option>This Week</option>
-            <option>This Month</option>
+          <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value as any)}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          >
+            <option value="all">All Dates</option>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
           </select>
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <p className="text-gray-600 dark:text-gray-400">Loading appointments...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-400">{error}</p>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && !error && appointments.length === 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <p className="text-gray-600 dark:text-gray-400">
+            {statusFilter !== "all" || dateFilter !== "all"
+              ? "No appointments found matching your filters"
+              : "No appointments yet. Schedule your first appointment to get started."}
+          </p>
+        </div>
+      )}
+
       {/* Appointments List */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-900">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Client
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Time
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Duration
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {appointments.map((appointment) => (
-              <tr
-                key={appointment.id}
-                className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    {appointment.clientName}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {appointment.date}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {appointment.time}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {appointment.duration}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {appointment.type}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                      appointment.status
-                    )}`}
-                  >
-                    {appointment.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mr-3">
-                    Edit
-                  </button>
-                  <button className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
-                    Cancel
-                  </button>
-                </td>
+      {!loading && !error && appointments.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Client
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Time
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Duration
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {appointments.map((appointment) => {
+                const { date, time } = formatDateTime(appointment.start_time);
+                const duration = calculateDuration(appointment.start_time, appointment.end_time);
+
+                return (
+                  <tr
+                    key={appointment.id}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {`${appointment.client.first_name} ${appointment.client.last_name}`}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {date}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {time}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {duration}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {appointment.appointment_type === 'in_person' ? 'In-Person' : 'Online'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                          appointment.status
+                        )}`}
+                      >
+                        {appointment.status.charAt(0).toUpperCase() +
+                          appointment.status.slice(1).replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-3">
+                        <Link
+                          href={`/appointments/${appointment.id}`}
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                          title="View appointment"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        {appointment.status !== "cancelled" && appointment.status !== "completed" && (
+                          <>
+                            <Link
+                              href={`/appointments/${appointment.id}/edit`}
+                              className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300"
+                              title="Edit appointment"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Link>
+                            <button
+                              onClick={() =>
+                                handleCancel(appointment.id, `${appointment.client.first_name} ${appointment.client.last_name}`)
+                              }
+                              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                              title="Cancel appointment"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -81,7 +81,16 @@ export class AppointmentRepository extends BaseRepository<'appointments'> {
     try {
       let query = this.db
         .from(this.tableName)
-        .select('*, client:clients(*)')
+        .select(`
+          *,
+          client:client_id (
+            id,
+            first_name,
+            last_name,
+            email,
+            phone
+          )
+        `)
         .eq('practice_id', practiceId)
         .order('start_time', { ascending: true })
 
@@ -187,6 +196,8 @@ export class AppointmentRepository extends BaseRepository<'appointments'> {
    * @param endTime - End time
    * @param excludeAppointmentId - Optional appointment ID to exclude (for updates)
    * @returns True if conflict exists
+   *
+   * Two time ranges overlap if: start_time < new_end_time AND end_time > new_start_time
    */
   async hasConflict(
     practitionerId: string,
@@ -200,7 +211,8 @@ export class AppointmentRepository extends BaseRepository<'appointments'> {
         .select('id')
         .eq('practitioner_id', practitionerId)
         .neq('status', 'cancelled')
-        .or(`start_time.lt.${endTime},end_time.gt.${startTime}`)
+        .lt('start_time', endTime)      // Existing appointment starts before new appointment ends
+        .gt('end_time', startTime)      // Existing appointment ends after new appointment starts
 
       if (excludeAppointmentId) {
         query = query.neq('id', excludeAppointmentId)
