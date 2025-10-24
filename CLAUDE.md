@@ -49,8 +49,9 @@ npm run type-check   # TypeScript type checking
   - `20240116000000_initial_schema.sql` - Initial schema with tables, RLS, indexes
   - `20250123000000_remove_profile_trigger.sql` - Removed auto-profile creation trigger (profiles now created in service layer)
   - `20251023000000_add_appointment_type.sql` - Added appointment_type enum and column (in_person, online)
+  - `20251024000000_create_client_sessions.sql` - Added client_sessions table with session_status enum for session tracking
 - To apply migrations: Run the SQL in Supabase project's SQL Editor
-- Core tables: `profiles`, `practices`, `clients`, `appointments`
+- Core tables: `profiles`, `practices`, `clients`, `appointments`, `client_sessions`
 - All tables have Row Level Security (RLS) enabled with practice-based isolation
 - **Important:** Profile records are NOT auto-created by triggers. They are created explicitly in the service layer during sign-up.
 
@@ -107,6 +108,14 @@ npm run type-check   # TypeScript type checking
   2. Added default value for time field: `time: ""` in the form's defaultValues to prevent undefined state
 - **Impact:** Users now see a clear, user-friendly error message "Please select a time" when they forget to select a time slot
 - **Technical Details:** React Hook Form with Zod requires all fields to have a defined value (even if empty string) to prevent type coercion errors. The custom message parameter provides better UX than Zod's default type error.
+
+**Session Creation API Route 404 Error (2025-10-24)**
+- **Issue:** Starting a session returned 404 error with URL `/api/api/sessions` instead of `/api/sessions`
+- **Root Cause:** In [session-api.ts](web/src/lib/api/session-api.ts), all API calls included `/api` prefix (e.g., `apiClient.post('/api/sessions', data)`), but the `apiClient` already has `/api` as its base URL, causing double prefix
+- **Fix:** Removed `/api` prefix from all session API client methods - changed from `/api/sessions` to `/sessions`, from `/api/sessions/${id}` to `/sessions/${id}`, etc.
+- **Impact:** Session API calls now work correctly with proper routing
+- **Technical Details:** The `apiClient` in [client.ts](web/src/lib/api/client.ts) has `baseURL: '/api'` set in its constructor. All API client methods should use relative paths without the `/api` prefix.
+- **Prevention:** Added prominent warning in CLAUDE.md under "API Client URL Pattern - CRITICAL" section to prevent this mistake in future implementations
 
 ## Architecture
 
@@ -243,6 +252,30 @@ Portal pages use [web/src/app/(portal)/layout.tsx](web/src/app/(portal)/layout.t
 All client and appointment queries are scoped to the user's `practice_id` via RLS policies. Users can only access data within their own practice.
 
 ## Common Development Patterns
+
+### API Client URL Pattern - CRITICAL
+
+**⚠️ IMPORTANT: The `apiClient` already includes `/api` as its base URL!**
+
+When creating API client files in `lib/api/`, **NEVER** include `/api` in the path:
+
+```typescript
+// ❌ WRONG - Double /api prefix
+export const exampleApi = {
+  async getAll() {
+    return apiClient.get('/api/examples')  // Becomes /api/api/examples (404!)
+  }
+}
+
+// ✅ CORRECT - No /api prefix
+export const exampleApi = {
+  async getAll() {
+    return apiClient.get('/examples')  // Becomes /api/examples ✓
+  }
+}
+```
+
+**Rule**: In `lib/api/*-api.ts` files, always use paths like `/resource`, `/resource/${id}`, etc. The `/api` prefix is added automatically by the `apiClient`.
 
 ### Clean Architecture Data Flow
 

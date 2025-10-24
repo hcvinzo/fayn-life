@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { appointmentApi, type Appointment } from "@/lib/api/appointment-api";
 import { clientApi, type Client } from "@/lib/api/client-api";
-import { ArrowLeft, Edit, XCircle, Calendar, Clock, User, FileText } from "lucide-react";
+import { sessionApi } from "@/lib/api/session-api";
+import { ArrowLeft, Edit, XCircle, Calendar, Clock, User, FileText, PlayCircle } from "lucide-react";
 import Link from "next/link";
 
 export default function AppointmentDetailsPage() {
@@ -16,6 +17,9 @@ export default function AppointmentDetailsPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasSession, setHasSession] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [startingSession, setStartingSession] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -26,6 +30,18 @@ export default function AppointmentDetailsPage() {
 
         const clientData = await clientApi.getById(appointmentData.client_id);
         setClient(clientData);
+
+        // Check if appointment has a session
+        try {
+          const sessionData = await sessionApi.getByAppointment(id);
+          if (sessionData) {
+            setHasSession(true);
+            setSessionId(sessionData.id);
+          }
+        } catch (err) {
+          // No session found, which is fine
+          setHasSession(false);
+        }
       } catch (err) {
         console.error("Error:", err);
         setError(err instanceof Error ? err.message : "Failed to load appointment");
@@ -45,6 +61,26 @@ export default function AppointmentDetailsPage() {
       router.push("/appointments");
     } catch (err) {
       alert("Failed to cancel appointment");
+    }
+  };
+
+  const handleStartSession = async () => {
+    if (!appointment || !client) return;
+
+    try {
+      setStartingSession(true);
+      const session = await sessionApi.create({
+        practice_id: appointment.practice_id,
+        appointment_id: appointment.id,
+        client_id: appointment.client_id,
+        practitioner_id: appointment.practitioner_id,
+      });
+      router.push(`/sessions/${session.id}`);
+    } catch (err) {
+      console.error("Failed to start session:", err);
+      alert("Failed to start session. Make sure the appointment is confirmed.");
+    } finally {
+      setStartingSession(false);
     }
   };
 
@@ -73,6 +109,25 @@ export default function AppointmentDetailsPage() {
           </div>
         </div>
         <div className="flex gap-3">
+          {hasSession && sessionId && (
+            <Link
+              href={`/sessions/${sessionId}`}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              <FileText className="w-4 h-4" />
+              View Session
+            </Link>
+          )}
+          {appointment.status === "confirmed" && !hasSession && (
+            <button
+              onClick={handleStartSession}
+              disabled={startingSession}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <PlayCircle className="w-4 h-4" />
+              {startingSession ? "Starting..." : "Start Session"}
+            </button>
+          )}
           {appointment.status !== "cancelled" && appointment.status !== "completed" && (
             <>
               <Link href={`/appointments/${id}/edit`} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">

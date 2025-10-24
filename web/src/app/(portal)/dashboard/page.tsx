@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { dashboardApi } from "@/lib/api/dashboard-api"
+import { sessionApi } from "@/lib/api/session-api"
 import type { DashboardData } from "@/types/dashboard"
 import { format, isSameDay } from "date-fns"
 import Link from "next/link"
@@ -13,7 +14,8 @@ import {
   ClockIcon,
   UsersIcon,
   TrendingUpIcon,
-  CheckCircle2Icon
+  CheckCircle2Icon,
+  PlayCircle
 } from "lucide-react"
 
 /**
@@ -25,6 +27,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [startingSessions, setStartingSessions] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadDashboardData()
@@ -65,6 +68,28 @@ export default function DashboardPage() {
   // Format appointment time
   const formatTime = (dateTime: string) => {
     return format(new Date(dateTime), "h:mm a")
+  }
+
+  // Start session handler
+  async function handleStartSession(appointment: any) {
+    try {
+      setStartingSessions(prev => new Set(prev).add(appointment.id))
+      const session = await sessionApi.create({
+        practice_id: appointment.practice_id,
+        appointment_id: appointment.id,
+        client_id: appointment.client_id,
+        practitioner_id: appointment.practitioner_id,
+      })
+      router.push(`/sessions/${session.id}`)
+    } catch (err) {
+      console.error("Failed to start session:", err)
+      alert("Failed to start session. Make sure the appointment is confirmed.")
+      setStartingSessions(prev => {
+        const next = new Set(prev)
+        next.delete(appointment.id)
+        return next
+      })
+    }
   }
 
   // Get status color
@@ -194,13 +219,12 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {todayAppointments.map((appointment) => (
-                  <Link
+                  <div
                     key={appointment.id}
-                    href={`/appointments/${appointment.id}`}
-                    className="block p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex-1">
+                      <Link href={`/appointments/${appointment.id}`} className="flex-1">
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
                             {formatTime(appointment.start_time)} - {formatTime(appointment.end_time)}
@@ -221,8 +245,8 @@ export default function DashboardPage() {
                             {appointment.notes}
                           </div>
                         )}
-                      </div>
-                      <div className="ml-4">
+                      </Link>
+                      <div className="ml-4 flex items-center gap-2">
                         <span
                           className={`text-xs px-2 py-1 rounded ${
                             appointment.appointment_type === "in_person"
@@ -232,9 +256,23 @@ export default function DashboardPage() {
                         >
                           {appointment.appointment_type === "in_person" ? "In-Person" : "Online"}
                         </span>
+                        {appointment.status === "confirmed" && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              handleStartSession(appointment)
+                            }}
+                            disabled={startingSessions.has(appointment.id)}
+                            className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                            title="Start session"
+                          >
+                            <PlayCircle className="h-3 w-3" />
+                            {startingSessions.has(appointment.id) ? "Starting..." : "Start"}
+                          </button>
+                        )}
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 ))}
               </div>
             )}

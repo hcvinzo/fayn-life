@@ -21,7 +21,8 @@
       "Bash(npx shadcn@latest add:*)",
       "Bash(cat:*)",
       "Read(//private/tmp/**)",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []

@@ -152,6 +152,50 @@ export interface Database {
           updated_at?: string;
         };
       };
+      client_sessions: {
+        Row: {
+          id: string;
+          practice_id: string;
+          appointment_id: string;
+          client_id: string;
+          practitioner_id: string;
+          start_time: string;
+          end_time: string | null;
+          status: "in_progress" | "completed" | "cancelled";
+          notes: string | null;
+          attachments: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          practice_id: string;
+          appointment_id: string;
+          client_id: string;
+          practitioner_id: string;
+          start_time?: string;
+          end_time?: string | null;
+          status?: "in_progress" | "completed" | "cancelled";
+          notes?: string | null;
+          attachments?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          practice_id?: string;
+          appointment_id?: string;
+          client_id?: string;
+          practitioner_id?: string;
+          start_time?: string;
+          end_time?: string | null;
+          status?: "in_progress" | "completed" | "cancelled";
+          notes?: string | null;
+          attachments?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -164,6 +208,7 @@ export interface Database {
       appointment_status: "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
       appointment_type: "in_person" | "online";
       client_status: "active" | "inactive" | "archived";
+      session_status: "in_progress" | "completed" | "cancelled";
     };
   };
 }

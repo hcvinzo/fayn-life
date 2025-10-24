@@ -1,20 +1,24 @@
 "use client";
 
-import { Plus, Filter, Eye, Edit, XCircle } from "lucide-react";
+import { Plus, Filter, Eye, Edit, XCircle, PlayCircle } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { appointmentApi, type AppointmentWithClient, type AppointmentFilters } from "@/lib/api/appointment-api";
+import { sessionApi } from "@/lib/api/session-api";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 /**
  * Appointments page
  * Displays list of all appointments with filter capabilities
  */
 export default function AppointmentsPage() {
+  const router = useRouter();
   const [appointments, setAppointments] = useState<AppointmentWithClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<AppointmentFilters["status"] | "all">("all");
   const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month">("all");
+  const [startingSessions, setStartingSessions] = useState<Set<string>>(new Set());
 
   // Fetch appointments
   const fetchAppointments = useCallback(async () => {
@@ -79,6 +83,28 @@ export default function AppointmentsPage() {
     } catch (err) {
       console.error("Error cancelling appointment:", err);
       alert("Failed to cancel appointment");
+    }
+  };
+
+  // Start session handler
+  const handleStartSession = async (appointment: AppointmentWithClient) => {
+    try {
+      setStartingSessions(prev => new Set(prev).add(appointment.id));
+      const session = await sessionApi.create({
+        practice_id: appointment.practice_id,
+        appointment_id: appointment.id,
+        client_id: appointment.client_id,
+        practitioner_id: appointment.practitioner_id,
+      });
+      router.push(`/sessions/${session.id}`);
+    } catch (err) {
+      console.error("Failed to start session:", err);
+      alert("Failed to start session. Make sure the appointment is confirmed.");
+      setStartingSessions(prev => {
+        const next = new Set(prev);
+        next.delete(appointment.id);
+        return next;
+      });
     }
   };
 
@@ -281,11 +307,21 @@ export default function AppointmentsPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
+                        {appointment.status === "confirmed" && (
+                          <button
+                            onClick={() => handleStartSession(appointment)}
+                            disabled={startingSessions.has(appointment.id)}
+                            className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Start session"
+                          >
+                            <PlayCircle className="w-4 h-4" />
+                          </button>
+                        )}
                         {appointment.status !== "cancelled" && appointment.status !== "completed" && (
                           <>
                             <Link
                               href={`/appointments/${appointment.id}/edit`}
-                              className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300"
+                              className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300"
                               title="Edit appointment"
                             >
                               <Edit className="w-4 h-4" />
