@@ -308,7 +308,7 @@ export default function AppointmentsPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
-                        {appointment.status === "confirmed" && (
+                        {appointment.status === "confirmed" && !appointment.has_session && (
                           <button
                             onClick={() => handleStartSession(appointment)}
                             disabled={startingSessions.has(appointment.id)}

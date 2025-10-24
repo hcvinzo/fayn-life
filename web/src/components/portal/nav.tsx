@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -52,9 +53,14 @@ export function PortalNav() {
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
       <div className="p-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          fayn.life
-        </h1>
+        <Image
+          src="/logo.png"
+          alt="fayn.life"
+          width={150}
+          height={50}
+          priority
+          className="mb-4"
+        />
         {profile && (
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             {profile.full_name || profile.email}

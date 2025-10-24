@@ -38,6 +38,7 @@ export type UpdateAppointmentDto = Partial<
  */
 export interface AppointmentWithClient extends Appointment {
   client: Client
+  has_session?: boolean // Whether a session exists for this appointment
 }
 
 /**

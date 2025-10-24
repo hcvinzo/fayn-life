@@ -89,6 +89,9 @@ export class AppointmentRepository extends BaseRepository<'appointments'> {
             last_name,
             email,
             phone
+          ),
+          client_sessions!appointment_id (
+            id
           )
         `)
         .eq('practice_id', practiceId)
@@ -117,7 +120,14 @@ export class AppointmentRepository extends BaseRepository<'appointments'> {
         throw new DatabaseError(`Failed to fetch appointments with client: ${error.message}`, error)
       }
 
-      return (data as any) || []
+      // Map the data to include has_session flag
+      const appointments = (data as any[])?.map((appt) => ({
+        ...appt,
+        has_session: appt.client_sessions && appt.client_sessions.length > 0,
+        client_sessions: undefined, // Remove the sessions array from the response
+      })) || []
+
+      return appointments
     } catch (error) {
       if (error instanceof DatabaseError) throw error
       throw new DatabaseError('Unexpected error fetching appointments with client', error)

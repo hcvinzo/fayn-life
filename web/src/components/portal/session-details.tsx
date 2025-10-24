@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { sessionApi } from "@/lib/api/session-api"
 import { fileApi } from "@/lib/api/file-api"
 import { storageService } from "@/lib/services/storage-service"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import type { SessionWithDetails, SessionAttachment } from "@/types/session"
 import type { FileRecord } from "@/types/file"
 import {
@@ -351,13 +352,12 @@ export function SessionDetails({
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           Session Notes
         </h3>
-        <textarea
+        <RichTextEditor
           value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          onChange={setNotes}
           disabled={session.status === "completed" || session.status === "cancelled"}
-          rows={10}
-          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
           placeholder="Enter session notes here..."
+          className="min-h-[300px]"
         />
         <div className="mt-4 flex gap-3">
           {session.status === "in_progress" && (

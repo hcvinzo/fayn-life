@@ -22,6 +22,7 @@ export interface Appointment {
 
 export interface AppointmentWithClient extends Appointment {
   client: Client
+  has_session?: boolean
 }
 
 export interface CreateAppointmentInput {
