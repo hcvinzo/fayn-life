@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useState, useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
@@ -10,16 +10,32 @@ import { clientApi, type Client } from "@/lib/api/client-api";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
-// Form schema - reordered with duration first, then date/time
+// Form schema
 const appointmentFormSchema = z.object({
-  client_id: z.string().uuid('Please select a client'),
+  client_id: z.string().min(1, 'Please select a client'),
   appointment_type: z.enum(['in_person', 'online']),
-  duration: z.number().min(15, 'Duration must be at least 15 minutes').max(480, 'Duration cannot exceed 8 hours'),
+  duration: z.number().min(15).max(480),
   date: z.date({ message: 'Please select a date' }),
-  time: z.string({ message: 'Please select a time' }).min(1, 'Please select a time'),
+  time: z.string().min(1, 'Please select a time'),
   status: z.enum(['scheduled', 'confirmed', 'completed', 'cancelled', 'no_show']).optional(),
-  notes: z.string().max(1000, 'Notes must be at most 1000 characters').optional().or(z.literal('')),
+  notes: z.string().max(1000).optional().or(z.literal('')),
 });
 
 type AppointmentFormData = z.infer<typeof appointmentFormSchema>;
@@ -29,8 +45,8 @@ interface AppointmentFormProps {
     client_id: string;
     appointment_type: 'in_person' | 'online';
     duration: number;
-    date: string; // ISO date string from API
-    time: string; // HH:MM format
+    date: string;
+    time: string;
     status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
     notes?: string;
   }>;
@@ -47,8 +63,7 @@ interface AppointmentFormProps {
 
 /**
  * Reusable Appointment Form Component
- * Used for both creating and editing appointments
- * Updated with shadcn calendar and time presets (GitHub Issue #11)
+ * Uses ShadCN Form components with new teal design system
  */
 export function AppointmentForm({
   defaultValues,
@@ -59,7 +74,6 @@ export function AppointmentForm({
   const [clients, setClients] = useState<Client[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
 
-  // Generate time slots from 9:00 AM to 6:00 PM in 15-minute intervals
   const timeSlots = Array.from({ length: 37 }, (_, i) => {
     const totalMinutes = i * 15;
     const hour = Math.floor(totalMinutes / 60) + 9;
@@ -67,7 +81,6 @@ export function AppointmentForm({
     return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
   });
 
-  // Convert API date string to Date object for calendar
   const convertedDefaultValues = defaultValues
     ? {
         ...defaultValues,
@@ -75,24 +88,17 @@ export function AppointmentForm({
       }
     : undefined;
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    control,
-    watch,
-  } = useForm<AppointmentFormData>({
+  const form = useForm<AppointmentFormData>({
     resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
       status: "scheduled",
-      appointment_type: "in_person", // Default to in-person
-      duration: 60, // Default to 60 minutes
-      time: "", // Default to empty string to prevent undefined
+      appointment_type: "in_person",
+      duration: 60,
+      time: "",
       ...convertedDefaultValues,
     },
   });
 
-  // Load active clients
   useEffect(() => {
     const loadClients = async () => {
       try {
@@ -105,45 +111,35 @@ export function AppointmentForm({
         setLoadingClients(false);
       }
     };
-
     loadClients();
   }, []);
 
   const onFormSubmit = async (data: AppointmentFormData) => {
     try {
       setIsSubmitting(true);
-
-      // Combine date and time to create start_time
       const year = data.date.getFullYear();
       const month = String(data.date.getMonth() + 1).padStart(2, '0');
       const day = String(data.date.getDate()).padStart(2, '0');
       const dateString = `${year}-${month}-${day}`;
-
       const startDateTime = new Date(`${dateString}T${data.time}`);
-
-      // Calculate end_time based on duration
       const endDateTime = new Date(startDateTime.getTime() + data.duration * 60000);
 
-      // Convert to ISO strings
-      const submitData = {
+      await onSubmit({
         client_id: data.client_id,
         appointment_type: data.appointment_type,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
         status: data.status,
         notes: data.notes || undefined,
-      };
-
-      await onSubmit(submitData);
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Watch values for calculated end time
-  const duration = watch('duration');
-  const date = watch('date');
-  const time = watch('time');
+  const duration = form.watch('duration');
+  const date = form.watch('date');
+  const time = form.watch('time');
 
   const calculatedEndTime = () => {
     if (!date || !time || !duration) return '';
@@ -152,7 +148,6 @@ export function AppointmentForm({
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       const dateString = `${year}-${month}-${day}`;
-
       const startDateTime = new Date(`${dateString}T${time}`);
       const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
       return endDateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -161,271 +156,247 @@ export function AppointmentForm({
     }
   };
 
-  // Get today's date at midnight for comparison (prevent past dates)
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   return (
-    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
-      {/* Appointment Details Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Appointment Details
-        </h2>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-6">
+        <Card>
+          <CardContent className="pt-6">
+            <h2 className="text-lg font-semibold mb-6">Appointment Details</h2>
+            <div className="grid grid-cols-1 gap-6">
+              {/* Client Selection */}
+              <FormField
+                control={form.control}
+                name="client_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Client *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={loadingClients}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={loadingClients ? "Loading..." : "Select a client"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-        <div className="grid grid-cols-1 gap-6">
-          {/* Client Selection */}
-          <div>
-            <label
-              htmlFor="client_id"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Client <span className="text-red-500">*</span>
-            </label>
-            {loadingClients ? (
-              <div className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500">
-                Loading clients...
-              </div>
-            ) : (
-              <select
-                {...register("client_id")}
-                id="client_id"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">Select a client</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.full_name}
-                  </option>
-                ))}
-              </select>
-            )}
-            {errors.client_id && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {errors.client_id.message}
-              </p>
-            )}
-          </div>
+              {/* Appointment Type */}
+              <FormField
+                control={form.control}
+                name="appointment_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Appointment Type *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="in_person">In-Person</SelectItem>
+                        <SelectItem value="online">Online</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          {/* Appointment Type */}
-          <div>
-            <label
-              htmlFor="appointment_type"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Appointment Type <span className="text-red-500">*</span>
-            </label>
-            <select
-              {...register("appointment_type")}
-              id="appointment_type"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="">Select appointment type</option>
-              <option value="in_person">In-Person</option>
-              <option value="online">Online</option>
-            </select>
-            {errors.appointment_type && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {errors.appointment_type.message}
-              </p>
-            )}
-          </div>
+              {/* Duration */}
+              <FormField
+                control={form.control}
+                name="duration"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duration *</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                      value={field.value?.toString()}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="15">15 minutes</SelectItem>
+                        <SelectItem value="30">30 minutes</SelectItem>
+                        <SelectItem value="45">45 minutes</SelectItem>
+                        <SelectItem value="60">60 minutes</SelectItem>
+                        <SelectItem value="90">90 minutes</SelectItem>
+                        <SelectItem value="120">2 hours</SelectItem>
+                        <SelectItem value="180">3 hours</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          {/* Duration - Moved to top per requirements */}
-          <div>
-            <label
-              htmlFor="duration"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Duration <span className="text-red-500">*</span>
-            </label>
-            <select
-              {...register("duration", { valueAsNumber: true })}
-              id="duration"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value={15}>15 minutes</option>
-              <option value={30}>30 minutes</option>
-              <option value={45}>45 minutes</option>
-              <option value={60}>60 minutes</option>
-              <option value={90}>90 minutes</option>
-              <option value={120}>2 hours</option>
-              <option value={180}>3 hours</option>
-            </select>
-            {errors.duration && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {errors.duration.message}
-              </p>
-            )}
-          </div>
-
-          {/* Date and Time Picker with ShadCN Calendar */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Date & Time <span className="text-red-500">*</span>
-            </label>
-            <Card className="gap-0 p-0">
-              <CardContent className="relative p-0 md:pr-48">
-                <div className="p-6">
-                  <Controller
-                    control={control}
-                    name="date"
-                    render={({ field }) => (
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) => date < today}
-                        defaultMonth={field.value}
-                        showOutsideDays={false}
-                        className="bg-transparent p-0 [--cell-size:--spacing(10)] md:[--cell-size:--spacing(12)]"
-                        formatters={{
-                          formatWeekdayName: (date) => {
-                            return date.toLocaleString("en-US", { weekday: "short" });
-                          },
-                        }}
+              {/* Date and Time */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Date & Time *
+                </label>
+                <Card className="gap-0 p-0">
+                  <CardContent className="relative p-0 md:pr-48">
+                    <div className="p-6">
+                      <FormField
+                        control={form.control}
+                        name="date"
+                        render={({ field }) => (
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) => date < today}
+                            defaultMonth={field.value}
+                            showOutsideDays={false}
+                            className="bg-transparent p-0"
+                          />
+                        )}
                       />
-                    )}
-                  />
-                </div>
-                <div className="no-scrollbar inset-y-0 right-0 flex max-h-72 w-full scroll-pb-6 flex-col gap-4 overflow-y-auto border-t p-6 md:absolute md:max-h-none md:w-48 md:border-t-0 md:border-l">
-                  <div className="grid gap-2">
-                    <Controller
-                      control={control}
-                      name="time"
-                      render={({ field }) => (
+                    </div>
+                    <div className="no-scrollbar inset-y-0 right-0 flex max-h-72 w-full scroll-pb-6 flex-col gap-4 overflow-y-auto border-t p-6 md:absolute md:max-h-none md:w-48 md:border-t-0 md:border-l">
+                      <div className="grid gap-2">
+                        <FormField
+                          control={form.control}
+                          name="time"
+                          render={({ field }) => (
+                            <>
+                              {timeSlots.map((slot) => (
+                                <Button
+                                  key={slot}
+                                  type="button"
+                                  variant={field.value === slot ? "default" : "outline"}
+                                  onClick={() => field.onChange(slot)}
+                                  className="w-full shadow-none"
+                                >
+                                  {slot}
+                                </Button>
+                              ))}
+                            </>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex flex-col gap-4 border-t px-6 !py-5 md:flex-row">
+                    <div className="text-sm">
+                      {date && time ? (
                         <>
-                          {timeSlots.map((slot) => (
-                            <Button
-                              key={slot}
-                              type="button"
-                              variant={field.value === slot ? "default" : "outline"}
-                              onClick={() => field.onChange(slot)}
-                              className="w-full shadow-none"
-                            >
-                              {slot}
-                            </Button>
-                          ))}
+                          Appointment scheduled for{" "}
+                          <span className="font-medium">
+                            {date.toLocaleDateString("en-US", {
+                              weekday: "long",
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </span>{" "}
+                          at <span className="font-medium">{time}</span>
+                          {calculatedEndTime() && (
+                            <>
+                              {" "}(ends at <span className="font-medium">{calculatedEndTime()}</span>)
+                            </>
+                          )}
                         </>
+                      ) : (
+                        <>Select a date and time for the appointment.</>
                       )}
+                    </div>
+                  </CardFooter>
+                </Card>
+                {(form.formState.errors.date || form.formState.errors.time) && (
+                  <p className="text-sm font-medium text-destructive">
+                    {form.formState.errors.date?.message || form.formState.errors.time?.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Status */}
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="scheduled">Scheduled</SelectItem>
+                        <SelectItem value="confirmed">Confirmed</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                        <SelectItem value="no_show">No Show</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Notes */}
+        <Card>
+          <CardContent className="pt-6">
+            <h2 className="text-lg font-semibold mb-6">Notes</h2>
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Appointment Notes</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      rows={4}
+                      placeholder="Any additional information..."
+                      className="resize-none"
                     />
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex flex-col gap-4 border-t px-6 !py-5 md:flex-row">
-                <div className="text-sm">
-                  {date && time ? (
-                    <>
-                      Appointment scheduled for{" "}
-                      <span className="font-medium">
-                        {date.toLocaleDateString("en-US", {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </span>{" "}
-                      at <span className="font-medium">{time}</span>
-                      {calculatedEndTime() && (
-                        <>
-                          {" "}
-                          (ends at <span className="font-medium">{calculatedEndTime()}</span>)
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <>Select a date and time for the appointment.</>
-                  )}
-                </div>
-              </CardFooter>
-            </Card>
-            {errors.date && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {errors.date.message}
-              </p>
-            )}
-            {errors.time && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {errors.time.message}
-              </p>
-            )}
-          </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
 
-          {/* Status */}
-          <div>
-            <label
-              htmlFor="status"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Status
-            </label>
-            <select
-              {...register("status")}
-              id="status"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="scheduled">Scheduled</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="no_show">No Show</option>
-            </select>
-            {errors.status && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {errors.status.message}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Notes Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Notes
-        </h2>
-
-        <div>
-          <label
-            htmlFor="notes"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => window.history.back()}
+            disabled={isSubmitting}
           >
-            Appointment Notes
-          </label>
-          <textarea
-            {...register("notes")}
-            id="notes"
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white resize-none"
-            placeholder="Any additional information about the appointment..."
-          />
-          {errors.notes && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-              {errors.notes.message}
-            </p>
-          )}
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {submitLabel}
+          </Button>
         </div>
-      </div>
-
-      {/* Form Actions */}
-      <div className="flex items-center justify-end gap-4">
-        <button
-          type="button"
-          onClick={() => window.history.back()}
-          className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          disabled={isSubmitting}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          {submitLabel}
-        </button>
-      </div>
-    </form>
+      </form>
+    </Form>
   );
 }

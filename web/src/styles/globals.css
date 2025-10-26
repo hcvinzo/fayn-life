@@ -114,9 +114,6 @@ All colors MUST be HSL.
     @apply font-semibold tracking-tight;
   }
 
-    a {
-    @apply text-primary hover:text-primary/80;
-  }
 }
 
 @layer utilities {
