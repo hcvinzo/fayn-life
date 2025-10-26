@@ -6,6 +6,7 @@ import { appointmentApi, type AppointmentWithClient, type AppointmentFilters } f
 import { sessionApi } from "@/lib/api/session-api";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 /**
  * Appointments page
@@ -162,13 +163,11 @@ export default function AppointmentsPage() {
             Manage your appointment schedule
           </p>
         </div>
-        <Link
-          href="/appointments/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
+        <Button
+          onClick={() => router.push("/appointments/new")}>
+          <Plus className="mr-2 h-4 w-4" />
           New Appointment
-        </Link>
+        </Button>
       </div>
 
       {/* Filters */}

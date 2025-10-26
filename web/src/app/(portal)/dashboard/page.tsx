@@ -15,8 +15,12 @@ import {
   UsersIcon,
   TrendingUpIcon,
   CheckCircle2Icon,
-  PlayCircle
+  PlayCircle,
+  Calendar
 } from "lucide-react"
+import { StatsCard } from "@/components/ui/stats-card"
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 
 /**
  * Dashboard page
@@ -126,63 +130,33 @@ export default function DashboardPage() {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Today Fill Rate */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Today Fill Rate
-            </div>
-            <TrendingUpIcon className="h-5 w-5 text-blue-500" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">
-              {stats.todayFillRate}%
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              {stats.todayAppointments} appointments
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Today Fill Rate"
+          value={stats.todayFillRate.toString() + "%"}
+          icon={TrendingUpIcon}
+          trend={`${stats.todayAppointments} appointments`}
+        />
 
         {/* Week Fill Rate */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Week Fill Rate
-            </div>
-            <CheckCircle2Icon className="h-5 w-5 text-green-500" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">
-              {stats.weekFillRate}%
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              {stats.weekAppointments} appointments
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Week Fill Rate"
+          value={stats.weekFillRate.toString() + "%"}
+          icon={CheckCircle2Icon}
+          trend={`${stats.weekAppointments} appointments`}
+        />
 
         {/* Total Clients */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Total Clients
-            </div>
-            <UsersIcon className="h-5 w-5 text-purple-500" />
-          </div>
-          <div className="mt-2">
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">
-              {stats.totalClients}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Active clients
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Total Clients"
+          value={stats.totalClients.toString()}
+          icon={UsersIcon}
+          trend="Active Clients"
+        />
 
         {/* Quick Action - New Appointment */}
         <Link
           href="/appointments/new"
-          className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-lg shadow p-6 border border-blue-400 transition-all hover:shadow-lg text-white group"
+          className="bg-gradient-to-br rounded-lg shadow p-6 border border-blue-400 transition-all hover:shadow-lg text-white group"
         >
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium">Quick Action</div>
@@ -196,23 +170,21 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
         {/* Today's Appointments */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+        <Card className="lg:col-span-2">
+          <CardHeader className="border-b py-2">
+            <CardTitle>
               <ClockIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Today&apos;s Appointments
-              </h2>
-            </div>
-            <Link
-              href="/appointments/new"
-              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              + New
-            </Link>
-          </div>
-          <div className="p-6">
+              Today's Appointments
+            </CardTitle>
+            <CardAction>
+              <Button variant="ghost" size="sm" className="hidden md:flex" onClick={() => router.push("/appointments/new")}>
+                + New
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
             {todayAppointments.length === 0 ? (
               <p className="text-gray-600 dark:text-gray-400 text-center py-8">
                 No appointments scheduled for today.
@@ -249,11 +221,10 @@ export default function DashboardPage() {
                       </Link>
                       <div className="ml-4 flex items-center gap-2">
                         <span
-                          className={`text-xs px-2 py-1 rounded ${
-                            appointment.appointment_type === "in_person"
-                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                              : "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
-                          }`}
+                          className={`text-xs px-2 py-1 rounded ${appointment.appointment_type === "in_person"
+                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                            : "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
+                            }`}
                         >
                           {appointment.appointment_type === "in_person" ? "In-Person" : "Online"}
                         </span>
@@ -277,101 +248,83 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Upcoming Appointments Calendar */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="space-y-4">
+
+          {/* Upcoming Appointments Calendar */}
+          <Card>
+            <CardHeader className="border-b py-2">
+              <CardTitle>
+                <CalendarIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                 Upcoming
-              </h2>
-            </div>
-            <Link
-              href="/calendar"
-              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              View Calendar
-            </Link>
-          </div>
-          <div className="p-6">
-            {upcomingAppointments.length === 0 ? (
-              <p className="text-gray-600 dark:text-gray-400 text-center py-8 text-sm">
-                No upcoming appointments in the next 7 days.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {upcomingAppointments.map((appointment) => (
-                  <Link
-                    key={appointment.id}
-                    href={`/appointments/${appointment.id}`}
-                    className="block p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                  >
-                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                      {format(new Date(appointment.start_time), "EEE, MMM d")}
-                    </div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      {formatTime(appointment.start_time)}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {appointment.client.first_name} {appointment.client.last_name}
-                    </div>
-                    <div className="mt-2">
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                          appointment.status
-                        )}`}
-                      >
-                        {appointment.status}
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
+              </CardTitle>
+              <CardAction>
+                <Button variant="ghost" size="sm" className="hidden md:flex" onClick={() => router.push("/calendar")}>
+                  View Calendar
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="text-3xl font-bold text-gray-900 dark:text-white">
+              {upcomingAppointments.length === 0 ? (
+                <p className="text-gray-600 dark:text-gray-400 text-center py-8 text-sm">
+                  No upcoming appointments in the next 7 days.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingAppointments.map((appointment) => (
+                    <Link
+                      key={appointment.id}
+                      href={`/appointments/${appointment.id}`}
+                      className="block p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
+                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        {format(new Date(appointment.start_time), "EEE, MMM d")}
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {formatTime(appointment.start_time)}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {appointment.client.first_name} {appointment.client.last_name}
+                      </div>
+                      <div className="mt-2">
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
+                            appointment.status
+                          )}`}
+                        >
+                          {appointment.status}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader className="border-b py-2">
+              <CardTitle>
+                Quick Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => router.push("/appointments/new")}
+              >
+                <Calendar className="mr-2 h-4 w-4" />New Appointment</Button>
+            </CardContent>
+          </Card>
+
         </div>
+
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Quick Actions
-          </h2>
-        </div>
-        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link
-            href="/clients/new"
-            className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors group"
-          >
-            <UserPlusIcon className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
-            <span className="text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-medium">
-              New Client
-            </span>
-          </Link>
-          <Link
-            href="/appointments/new"
-            className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors group"
-          >
-            <PlusIcon className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
-            <span className="text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-medium">
-              New Appointment
-            </span>
-          </Link>
-          <Link
-            href="/calendar"
-            className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors group"
-          >
-            <CalendarIcon className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
-            <span className="text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-medium">
-              View Calendar
-            </span>
-          </Link>
-        </div>
-      </div>
-    </div>
+    </div >
   )
 }
