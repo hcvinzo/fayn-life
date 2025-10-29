@@ -52,11 +52,14 @@ npm run type-check   # TypeScript type checking
   - `20251024000000_create_client_sessions.sql` - Added client_sessions table with session_status enum for session tracking
   - `20251024000001_create_files_table.sql` - Added files table for polymorphic file attachments
   - `20251024000002_create_storage_bucket.sql` - Created 'session-files' Supabase Storage bucket with RLS policies
+  - `20251028000000_create_availability_system.sql` - Added practitioner availability system with `practitioner_availability` and `availability_exceptions` tables, helper function for availability checking (Feature #16)
+  - `20251029000000_simplify_availability_exceptions.sql` - Simplified exception system: removed complex exception types (time_off, modified_hours, type_only), replaced with simple availability_status (off, online_only, in_person_only)
 - To apply migrations: Run the SQL in Supabase project's SQL Editor
-- Core tables: `profiles`, `practices`, `clients`, `appointments`, `client_sessions`, `files`
+- Core tables: `profiles`, `practices`, `clients`, `appointments`, `client_sessions`, `files`, `practitioner_availability`, `availability_exceptions`
 - Storage buckets: `session-files` (for session file attachments)
 - All tables have Row Level Security (RLS) enabled with practice-based isolation
 - **Important:** Profile records are NOT auto-created by triggers. They are created explicitly in the service layer during sign-up.
+- **Important:** Default availability (Mon-Fri, 9 AM - 5 PM) is automatically created for new practitioners during sign-up.
 
 ### Recent Bug Fixes
 
@@ -435,6 +438,7 @@ Phase 1 includes:
 - ✅ Calendar view for appointments (Feature #4)
 - ✅ Enhanced appointment form with calendar picker (Feature #11)
 - ✅ Appointment type classification (Feature #10)
+- ✅ Practitioner availability management (Feature #16)
 - ✅ Settings management
 - ✅ Full database integration with Supabase
 - ✅ Clean architecture implementation (services, repositories, API clients)
@@ -607,6 +611,69 @@ Real-time dashboard displaying practice statistics and upcoming appointments:
 - Loading and error states
 - Featured "New Appointment" quick action card with gradient styling
 - Seamless navigation to related pages (appointments, clients, calendar)
+
+### Practitioner Availability Management (Feature #16)
+Complete system for managing practitioner working schedules, hours, and exceptions:
+
+**Page:**
+- `/settings/availability` - Availability settings and exception management
+
+**Key Features:**
+- **Regular Schedule Management:**
+  - Set working hours for each day of the week
+  - Different schedules per appointment type (in-person vs online)
+  - Bulk setting for multiple days at once
+  - Quick presets (weekdays, weekend, all days)
+  - Individual time slot editing and deletion
+  - Reset to defaults (Mon-Fri, 9 AM - 5 PM)
+
+- **Exception Management:**
+  - **Off**: Mark periods when practitioner is completely unavailable
+  - **Online Only**: Only accept online appointments during a period
+  - **In-Person Only**: Only accept in-person appointments during a period
+  - Visual calendar + time picker interface for selecting date/time ranges
+  - Description field for notes (e.g., "Vacation", "Conference", "Traveling")
+
+- **Appointment Validation:**
+  - Real-time availability checking during appointment booking
+  - Blocks appointments outside working hours
+  - Respects exceptions (off periods, type restrictions)
+  - Clear error messages explaining unavailability
+
+**Architecture Stack:**
+- Types: [availability.ts](web/src/types/availability.ts)
+- Validators: [availability-schema.ts](web/src/lib/validators/availability-schema.ts)
+- Repositories: [availability-repository.ts](web/src/lib/repositories/availability-repository.ts)
+- Services: [availability-service.ts](web/src/lib/services/availability-service.ts)
+- API Routes: [/api/availability](web/src/app/api/availability), [/api/availability/exceptions](web/src/app/api/availability/exceptions), [/api/availability/check](web/src/app/api/availability/check)
+- API Client: [availability-api.ts](web/src/lib/api/availability-api.ts)
+- Components: [availability-settings.tsx](web/src/components/portal/availability-settings.tsx), [exception-manager.tsx](web/src/components/portal/exception-manager.tsx)
+
+**Database Schema:**
+- `practitioner_availability`: Regular weekly schedule (day_of_week, appointment_type, start_time, end_time)
+- `availability_exceptions`: Schedule exceptions (availability_status, start_datetime, end_datetime)
+- `is_practitioner_available()`: PostgreSQL function for checking availability with all rules applied
+
+**Technical Details:**
+- Day of week: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+- Times stored in HH:MM:SS format
+- Exceptions stored with full datetime range (TIMESTAMPTZ)
+- Database function handles complex availability logic (regular schedule + exceptions)
+- Practice-based data isolation via RLS
+- Default availability automatically created on practitioner sign-up
+- Appointment form validates against availability before submission
+
+**Availability Statuses:**
+- `off`: Practitioner completely unavailable (vacations, days off, holidays)
+- `online_only`: Only online appointments accepted (e.g., working remotely, traveling)
+- `in_person_only`: Only in-person appointments accepted (e.g., no video setup available)
+
+**UX Benefits:**
+- Prevents double-booking and scheduling conflicts
+- Reduces no-shows by ensuring practitioner availability
+- Flexible exception system for real-world scheduling needs
+- Clear visibility into practitioner's schedule
+- Easy bulk operations for common scenarios
 
 ## Code Style Notes
 

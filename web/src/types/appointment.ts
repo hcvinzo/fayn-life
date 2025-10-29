@@ -13,6 +13,11 @@ import type { Client } from './client'
 export type Appointment = Database['public']['Tables']['appointments']['Row']
 
 /**
+ * Appointment type enum
+ */
+export type AppointmentType = 'in_person' | 'online'
+
+/**
  * Data required to create a new appointment
  */
 export type CreateAppointmentDto = {

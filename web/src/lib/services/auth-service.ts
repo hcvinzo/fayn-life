@@ -21,6 +21,7 @@ import {
   type AuthResponse,
 } from '@/lib/repositories/auth-repository'
 import { profileRepository } from '@/lib/repositories/profile-repository'
+import { availabilityService } from '@/lib/services/availability-service'
 import {
   signInSchema,
   signUpSchema,
@@ -110,7 +111,7 @@ export class ServerAuthService {
 
   /**
    * Sign up with email, password, and profile data
-   * Orchestrates: 1) Create user in auth, 2) Create profile in database
+   * Orchestrates: 1) Create user in auth, 2) Create profile in database, 3) Set default availability
    */
   async signUp(input: SignUpInput): Promise<AuthServiceResponse> {
     try {
@@ -136,6 +137,20 @@ export class ServerAuthService {
         practice_id: validated.practiceId || null,
         role: validated.role || 'practitioner',
       })
+
+      // Step 3: Create default availability for practitioners (Mon-Fri, 9-5)
+      // This runs in the background and doesn't block sign-up
+      if ((validated.role === 'practitioner' || !validated.role) && validated.practiceId) {
+        try {
+          await availabilityService.resetToDefaults(
+            validated.practiceId,
+            authResult.user.id
+          )
+        } catch (error) {
+          // Log error but don't fail sign-up
+          console.error('Failed to create default availability:', error)
+        }
+      }
 
       return {
         success: true,

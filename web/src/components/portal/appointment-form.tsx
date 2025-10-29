@@ -4,12 +4,14 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import { clientApi, type Client } from "@/lib/api/client-api";
+import { availabilityCheckApi } from "@/lib/api/availability-api";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Form,
   FormControl,
@@ -73,6 +75,8 @@ export function AppointmentForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
 
   const timeSlots = Array.from({ length: 37 }, (_, i) => {
     const totalMinutes = i * 15;
@@ -117,12 +121,37 @@ export function AppointmentForm({
   const onFormSubmit = async (data: AppointmentFormData) => {
     try {
       setIsSubmitting(true);
+      setAvailabilityError(null);
+
       const year = data.date.getFullYear();
       const month = String(data.date.getMonth() + 1).padStart(2, '0');
       const day = String(data.date.getDate()).padStart(2, '0');
       const dateString = `${year}-${month}-${day}`;
       const startDateTime = new Date(`${dateString}T${data.time}`);
       const endDateTime = new Date(startDateTime.getTime() + data.duration * 60000);
+
+      // Check availability before submitting
+      try {
+        const availabilityCheck = await availabilityCheckApi.check({
+          appointment_type: data.appointment_type,
+          start_datetime: startDateTime.toISOString(),
+          end_datetime: endDateTime.toISOString(),
+        });
+
+        if (!availabilityCheck.available) {
+          setAvailabilityError(
+            availabilityCheck.reason ||
+            'You are not available during this time slot. Please check your availability settings.'
+          );
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking availability:', error);
+        setAvailabilityError('Failed to verify availability. Please try again.');
+        setIsSubmitting(false);
+        return;
+      }
 
       await onSubmit({
         client_id: data.client_id,
@@ -162,6 +191,13 @@ export function AppointmentForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-6">
+        {availabilityError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{availabilityError}</AlertDescription>
+          </Alert>
+        )}
+
         <Card>
           <CardContent className="pt-6">
             <h2 className="text-lg font-semibold mb-6">Appointment Details</h2>
