@@ -16,11 +16,13 @@ import {
   TrendingUpIcon,
   CheckCircle2Icon,
   PlayCircle,
-  Calendar
+  Calendar,
+  CalendarOff
 } from "lucide-react"
 import { StatsCard } from "@/components/ui/stats-card"
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { ExceptionDialog } from "@/components/portal/exception-dialog"
 
 /**
  * Dashboard page
@@ -186,9 +188,15 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {todayAppointments.length === 0 ? (
-              <p className="text-gray-600 dark:text-gray-400 text-center py-8">
-                No appointments scheduled for today.
-              </p>
+              <div className="text-center">
+                <p className="text-gray-600 dark:text-gray-400 py-8">
+                  No appointments scheduled for today.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/appointments/new")}>
+                  <Calendar className="mr-2 h-4 w-4" />Schedule Appointment</Button>
+              </div>
             ) : (
               <div className="space-y-3">
                 {todayAppointments.map((appointment) => (
@@ -317,7 +325,23 @@ export default function DashboardPage() {
                 className="w-full justify-start"
                 onClick={() => router.push("/appointments/new")}
               >
-                <Calendar className="mr-2 h-4 w-4" />New Appointment</Button>
+                <Calendar className="mr-2 h-4 w-4" />New Appointment
+              </Button>
+
+              <ExceptionDialog
+                onSuccess={() => {
+                  // Optionally reload dashboard data or show success message
+                  loadDashboardData()
+                }}
+                trigger={
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                  >
+                    <CalendarOff className="mr-2 h-4 w-4" />Set Time Off Period
+                  </Button>
+                }
+              />
             </CardContent>
           </Card>
 
