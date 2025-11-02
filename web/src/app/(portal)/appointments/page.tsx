@@ -8,6 +8,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/ui/data-table";
+import { Card, CardContent } from "@/components/ui/card";
 
 /**
  * Appointments page
@@ -153,6 +156,114 @@ export default function AppointmentsPage() {
     return `${durationMinutes} min`;
   };
 
+  // Column definitions for DataTable
+  const columns: ColumnDef<AppointmentWithClient>[] = [
+    {
+      accessorKey: "client",
+      header: "Client",
+      cell: ({ row }) => (
+        <div className="text-sm font-medium text-gray-900 dark:text-white">
+          {`${row.original.client.first_name} ${row.original.client.last_name}`}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "start_time",
+      header: "Date",
+      cell: ({ row }) => {
+        const { date } = formatDateTime(row.getValue("start_time"));
+        return <div className="text-sm text-gray-600 dark:text-gray-400">{date}</div>;
+      },
+    },
+    {
+      id: "time",
+      header: "Time",
+      cell: ({ row }) => {
+        const { time } = formatDateTime(row.original.start_time);
+        return <div className="text-sm text-gray-600 dark:text-gray-400">{time}</div>;
+      },
+    },
+    {
+      id: "duration",
+      header: "Duration",
+      cell: ({ row }) => {
+        const duration = calculateDuration(row.original.start_time, row.original.end_time);
+        return <div className="text-sm text-gray-600 dark:text-gray-400">{duration}</div>;
+      },
+    },
+    {
+      accessorKey: "appointment_type",
+      header: "Type",
+      cell: ({ row }) => (
+        <span className="text-sm text-gray-600 dark:text-gray-400">
+          {row.getValue("appointment_type") === 'in_person' ? 'In-Person' : 'Online'}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const status = row.getValue("status") as string;
+        return (
+          <span
+            className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(status)}`}
+          >
+            {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+          </span>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: () => <div className="text-right">Actions</div>,
+      cell: ({ row }) => {
+        const appointment = row.original;
+        return (
+          <div className="flex items-center justify-end gap-3">
+            <Link
+              href={`/appointments/${appointment.id}`}
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+              title="View appointment"
+            >
+              <Eye className="w-4 h-4" />
+            </Link>
+            {appointment.status === "confirmed" && !appointment.has_session && (
+              <button
+                onClick={() => handleStartSession(appointment)}
+                disabled={startingSessions.has(appointment.id)}
+                className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Start session"
+              >
+                <PlayCircle className="w-4 h-4" />
+              </button>
+            )}
+            {appointment.status !== "cancelled" && appointment.status !== "completed" && (
+              <>
+                <Link
+                  href={`/appointments/${appointment.id}/edit`}
+                  className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300"
+                  title="Edit appointment"
+                >
+                  <Edit className="w-4 h-4" />
+                </Link>
+                <button
+                  onClick={() =>
+                    handleCancel(appointment.id, `${appointment.client.first_name} ${appointment.client.last_name}`)
+                  }
+                  className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                  title="Cancel appointment"
+                >
+                  <XCircle className="w-4 h-4" />
+                </button>
+              </>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -172,8 +283,8 @@ export default function AppointmentsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex items-center gap-4">
+      <Card>
+        <CardContent>   <div className="flex items-center gap-4">
           <Filter className="w-5 h-5 text-gray-400" />
           <Select
             value={statusFilter}
@@ -205,8 +316,8 @@ export default function AppointmentsPage() {
               <SelectItem value="month">This Month</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-      </div>
+        </div></CardContent>
+      </Card>
 
       {/* Loading State */}
       {loading && (
@@ -235,125 +346,7 @@ export default function AppointmentsPage() {
 
       {/* Appointments List */}
       {!loading && !error && appointments.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-900">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Client
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Time
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Duration
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {appointments.map((appointment) => {
-                const { date, time } = formatDateTime(appointment.start_time);
-                const duration = calculateDuration(appointment.start_time, appointment.end_time);
-
-                return (
-                  <tr
-                    key={appointment.id}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {`${appointment.client.first_name} ${appointment.client.last_name}`}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {date}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {time}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {duration}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        {appointment.appointment_type === 'in_person' ? 'In-Person' : 'Online'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                          appointment.status
-                        )}`}
-                      >
-                        {appointment.status.charAt(0).toUpperCase() +
-                          appointment.status.slice(1).replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-3">
-                        <Link
-                          href={`/appointments/${appointment.id}`}
-                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                          title="View appointment"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                        {appointment.status === "confirmed" && !appointment.has_session && (
-                          <button
-                            onClick={() => handleStartSession(appointment)}
-                            disabled={startingSessions.has(appointment.id)}
-                            className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Start session"
-                          >
-                            <PlayCircle className="w-4 h-4" />
-                          </button>
-                        )}
-                        {appointment.status !== "cancelled" && appointment.status !== "completed" && (
-                          <>
-                            <Link
-                              href={`/appointments/${appointment.id}/edit`}
-                              className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300"
-                              title="Edit appointment"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Link>
-                            <button
-                              onClick={() =>
-                                handleCancel(appointment.id, `${appointment.client.first_name} ${appointment.client.last_name}`)
-                              }
-                              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                              title="Cancel appointment"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={columns} data={appointments} />
       )}
     </div>
   );

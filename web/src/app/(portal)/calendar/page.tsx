@@ -4,12 +4,17 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { appointmentApi, type AppointmentWithClient } from "@/lib/api/appointment-api";
 import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation"
 
 /**
  * Calendar page
  * Displays calendar view of appointments
  */
 export default function CalendarPage() {
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointments, setAppointments] = useState<AppointmentWithClient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -181,17 +186,14 @@ export default function CalendarPage() {
             View your appointments in calendar format
           </p>
         </div>
-        <Link
-          href="/appointments/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
+        <Button size="sm" variant="default" onClick={() => router.push("/appointments/new")}>
+          <Plus className="w-4 h-4 mr-2" />
           New Appointment
-        </Link>
+        </Button>
       </div>
 
       {/* Calendar Controls */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4">
+      <Card>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
@@ -211,29 +213,19 @@ export default function CalendarPage() {
             <div className="px-4 py-2 font-semibold text-lg text-gray-900 dark:text-white">
               {monthYear}
             </div>
-            <button
-              onClick={goToToday}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
+            <Button variant="outline" size="sm" onClick={goToToday}>
               Today
-            </button>
+            </Button>
           </div>
 
           {/* View Toggle (placeholder for future week/day views) */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setView("month")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                view === "month"
-                  ? "bg-blue-600 text-white"
-                  : "border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-              }`}
-            >
+            <Button variant="link" size="sm" onClick={() => setView("month")}>
               Month
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Error State */}
       {error && (
@@ -243,91 +235,92 @@ export default function CalendarPage() {
       )}
 
       {/* Calendar Grid */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {/* Weekday Headers */}
-        <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <div
-              key={day}
-              className="px-2 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900"
-            >
-              {day}
-            </div>
-          ))}
-        </div>
-
-        {/* Calendar Days */}
-        {loading ? (
-          <div className="p-12 text-center">
-            <p className="text-gray-600 dark:text-gray-400">Loading calendar...</p>
+      <Card className="p-0">
+        <CardContent>
+          {/* Weekday Headers */}
+          <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+              <div
+                key={day}
+                className={cn("px-2 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900", day === "Mon" ? "rounded-tl-xl" : "", day === "Sun" ? "rounded-tr-xl" : "")}
+              >
+                {day}
+              </div>
+            ))}
           </div>
-        ) : (
-          <div className="grid grid-cols-7">
-            {calendarDays.map((day, index) => {
-              const dayAppointments = getAppointmentsForDay(day.date);
 
-              return (
-                <div
-                  key={index}
-                  className={`min-h-[120px] border-r border-b border-gray-200 dark:border-gray-700 p-2 ${
-                    !day.isCurrentMonth
+          {/* Calendar Days */}
+          {loading ? (
+            <div className="p-12 text-center">
+              <p className="text-gray-600 dark:text-gray-400">Loading calendar...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-7">
+              {calendarDays.map((day, index) => {
+                const dayAppointments = getAppointmentsForDay(day.date);
+
+                return (
+                  <div
+                    key={index}
+                    className={`min-h-[120px] border-r border-b border-gray-200 dark:border-gray-700 p-2 ${!day.isCurrentMonth
                       ? "bg-gray-50 dark:bg-gray-900/50"
                       : "bg-white dark:bg-gray-800"
-                  } ${index % 7 === 6 ? "border-r-0" : ""}`}
-                >
-                  {/* Day Number */}
-                  <div className="flex items-center justify-between mb-1">
-                    <span
-                      className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium ${
-                        day.isToday
+                      } ${index % 7 === 6 ? "border-r-0" : ""}
+                       ${index === calendarDays.length - 7 ? "rounded-bl-lg" : ""}
+                       ${index === calendarDays.length - 1 ? "rounded-br-lg" : ""}`}
+                  >
+                    {/* Day Number */}
+                    <div className="flex items-center justify-between mb-1">
+                      <span
+                        className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium ${day.isToday
                           ? "bg-blue-600 text-white"
                           : day.isCurrentMonth
-                          ? "text-gray-900 dark:text-white"
-                          : "text-gray-400 dark:text-gray-600"
-                      }`}
-                    >
-                      {day.date.getDate()}
-                    </span>
-                  </div>
-
-                  {/* Appointments */}
-                  <div className="space-y-1">
-                    {dayAppointments.slice(0, 3).map((appointment) => (
-                      <Link
-                        key={appointment.id}
-                        href={`/appointments/${appointment.id}`}
-                        className={`block px-2 py-1 rounded text-xs border transition-colors hover:shadow-sm ${getStatusColor(
-                          appointment.status
-                        )}`}
-                        title={`${formatTime(appointment.start_time)} - ${appointment.client.first_name} ${appointment.client.last_name}`}
+                            ? "text-gray-900 dark:text-white"
+                            : "text-gray-400 dark:text-gray-600"
+                          }`}
                       >
-                        <div className="font-medium truncate">
-                          {formatTime(appointment.start_time)}
+                        {day.date.getDate()}
+                      </span>
+                    </div>
+
+                    {/* Appointments */}
+                    <div className="space-y-1">
+                      {dayAppointments.slice(0, 3).map((appointment) => (
+                        <Link
+                          key={appointment.id}
+                          href={`/appointments/${appointment.id}`}
+                          className={`block px-2 py-1 rounded text-xs border transition-colors hover:shadow-sm ${getStatusColor(
+                            appointment.status
+                          )}`}
+                          title={`${formatTime(appointment.start_time)} - ${appointment.client.first_name} ${appointment.client.last_name}`}
+                        >
+                          <div className="font-medium truncate">
+                            {formatTime(appointment.start_time)}
+                          </div>
+                          <div className="truncate">
+                            {appointment.client.first_name} {appointment.client.last_name}
+                          </div>
+                        </Link>
+                      ))}
+                      {dayAppointments.length > 3 && (
+                        <div className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 font-medium">
+                          +{dayAppointments.length - 3} more
                         </div>
-                        <div className="truncate">
-                          {appointment.client.first_name} {appointment.client.last_name}
-                        </div>
-                      </Link>
-                    ))}
-                    {dayAppointments.length > 3 && (
-                      <div className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 font-medium">
-                        +{dayAppointments.length - 3} more
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
 
       {/* Legend */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-          Status Legend
-        </h3>
-        <div className="flex flex-wrap gap-4">
+      <Card>
+        <CardHeader><CardTitle>Status Legend</CardTitle></CardHeader>
+        <CardContent> <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded bg-blue-600"></div>
             <span className="text-sm text-gray-600 dark:text-gray-400">Scheduled</span>
@@ -348,8 +341,8 @@ export default function CalendarPage() {
             <div className="w-3 h-3 rounded bg-orange-600"></div>
             <span className="text-sm text-gray-600 dark:text-gray-400">No Show</span>
           </div>
-        </div>
-      </div>
+        </div></CardContent>
+      </Card>
     </div>
   );
 }
