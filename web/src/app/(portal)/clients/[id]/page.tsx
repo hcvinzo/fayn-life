@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { clientApi, type Client } from "@/lib/api/client-api";
-import { ArrowLeft, Edit, Archive, Mail, Phone, Calendar, FileText } from "lucide-react";
+import { appointmentApi, type AppointmentWithClient } from "@/lib/api/appointment-api";
+import { sessionApi } from "@/lib/api/session-api";
+import { ArrowLeft, Edit, Archive, Mail, Phone, Calendar, FileText, PlayCircle, Plus } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,9 @@ export default function ClientDetailsPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [appointments, setAppointments] = useState<AppointmentWithClient[]>([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(true);
+  const [startingSession, setStartingSession] = useState(false);
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -41,6 +46,46 @@ export default function ClientDetailsPage() {
     }
   }, [id]);
 
+  // Fetch appointments for this client
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        setLoadingAppointments(true);
+        const data = await appointmentApi.getAll({
+          client_id: id,
+          include_client: false, // We already have client data
+        });
+        setAppointments(data as AppointmentWithClient[]);
+      } catch (err) {
+        console.error("Error fetching appointments:", err);
+      } finally {
+        setLoadingAppointments(false);
+      }
+    };
+
+    if (id) {
+      fetchAppointments();
+    }
+  }, [id]);
+
+  // Split appointments into upcoming and past
+  const now = new Date();
+  const upcomingAppointments = appointments
+    .filter((apt) =>
+      new Date(apt.start_time) > now &&
+      apt.status !== "completed" &&
+      apt.status !== "cancelled"
+    )
+    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+  const pastAppointments = appointments
+    .filter((apt) =>
+      new Date(apt.start_time) <= now ||
+      apt.status === "completed" ||
+      apt.status === "cancelled"
+    )
+    .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
+
   const handleArchive = async () => {
     if (!client || !confirm(`Are you sure you want to archive ${client.full_name}?`)) {
       return;
@@ -55,6 +100,24 @@ export default function ClientDetailsPage() {
     }
   };
 
+  const handleStartSession = async (appointment: AppointmentWithClient) => {
+    try {
+      setStartingSession(true);
+      const session = await sessionApi.create({
+        practice_id: appointment.practice_id,
+        appointment_id: appointment.id,
+        client_id: appointment.client_id,
+        practitioner_id: appointment.practitioner_id,
+      });
+      router.push(`/appointments/${appointment.id}`);
+    } catch (err) {
+      console.error("Error starting session:", err);
+      alert(err instanceof Error ? err.message : "Failed to start session");
+    } finally {
+      setStartingSession(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
@@ -63,6 +126,23 @@ export default function ClientDetailsPage() {
         return "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400";
       case "archived":
         return "bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400";
+      default:
+        return "bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400";
+    }
+  };
+
+  const getAppointmentStatusColor = (status: string) => {
+    switch (status) {
+      case "scheduled":
+        return "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400";
+      case "confirmed":
+        return "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400";
+      case "completed":
+        return "bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400";
+      case "cancelled":
+        return "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400";
+      case "no_show":
+        return "bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400";
       default:
         return "bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400";
     }
@@ -248,6 +328,150 @@ export default function ClientDetailsPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Upcoming Appointments */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5" />
+                    Upcoming Appointments
+                  </div>
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => router.push(`/appointments/new?client_id=${id}`)}
+                >
+                  <Plus className="w-4 h-4" />
+                  New Appointment
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingAppointments ? (
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-4">
+                  Loading appointments...
+                </p>
+              ) : upcomingAppointments.length === 0 ? (
+                <div className="text-center py-8">
+                  <Calendar className="w-12 h-12 mx-auto text-gray-400 mb-3" />
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    No appointments scheduled
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => router.push(`/appointments/new?client_id=${id}`)}
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Schedule Appointment
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingAppointments.map((appointment, index) => (
+                    <div
+                      key={appointment.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {formatDateTime(appointment.start_time)}
+                          </p>
+                          <span
+                            className={`px-2 py-0.5 text-xs font-medium rounded-full ${getAppointmentStatusColor(
+                              appointment.status
+                            )}`}
+                          >
+                            {appointment.status.charAt(0).toUpperCase() +
+                              appointment.status.slice(1).replace('_', ' ')}
+                          </span>
+                        </div>
+                        {appointment.notes && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1">
+                            {appointment.notes}
+                          </p>
+                        )}
+                      </div>
+                      {index === 0 && (appointment.status === "scheduled" || appointment.status === "confirmed") && !appointment.has_session && (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={() => handleStartSession(appointment)}
+                          disabled={startingSession}
+                          className="ml-3"
+                        >
+                          <PlayCircle className="w-4 h-4 mr-1" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Appointment History */}
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Appointment History
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingAppointments ? (
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-4">
+                  Loading appointments...
+                </p>
+              ) : pastAppointments.length === 0 ? (
+                <div className="text-center py-8">
+                  <Calendar className="w-12 h-12 mx-auto text-gray-400 mb-3" />
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    No appointments
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {pastAppointments.slice(0, 10).map((appointment) => (
+                    <Link
+                      key={appointment.id}
+                      href={`/appointments/${appointment.id}`}
+                      className="block p-3 bg-gray-50 dark:bg-gray-900 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          {formatDateTime(appointment.start_time)}
+                        </p>
+                        <span
+                          className={`px-2 py-0.5 text-xs font-medium rounded-full ${getAppointmentStatusColor(
+                            appointment.status
+                          )}`}
+                        >
+                          {appointment.status.charAt(0).toUpperCase() +
+                            appointment.status.slice(1).replace('_', ' ')}
+                        </span>
+                      </div>
+                      {appointment.notes && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1">
+                          {appointment.notes}
+                        </p>
+                      )}
+                    </Link>
+                  ))}
+                  {pastAppointments.length > 10 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-500 text-center pt-2">
+                      Showing 10 of {pastAppointments.length} appointments
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Sidebar */}
