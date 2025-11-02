@@ -29,6 +29,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.75.0",
+    "@tanstack/react-table": "^8.21.3",
     "@tiptap/core": "^3.8.0",
     "@tiptap/extension-character-count": "^3.8.0",
     "@tiptap/extension-code-block-lowlight": "^3.8.0",

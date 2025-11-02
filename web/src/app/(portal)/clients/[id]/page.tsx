@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { clientApi, type Client } from "@/lib/api/client-api";
 import { ArrowLeft, Edit, Archive, Mail, Phone, Calendar, FileText } from "lucide-react";
 import Link from "next/link";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 /**
  * Client Details Page
@@ -136,21 +138,14 @@ export default function ClientDetailsPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            href={`/clients/${id}/edit`}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Edit className="w-4 h-4" />
+          <Button variant="default" size="sm" className="hidden md:flex" onClick={() => router.push(`/clients/${id}/edit`)}>
             Edit
-          </Link>
+          </Button>
           {client.status !== "archived" && (
-            <button
-              onClick={handleArchive}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
+            <Button variant="destructive" size="sm" className="hidden md:flex" onClick={handleArchive}>
               <Archive className="w-4 h-4" />
               Archive
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -160,162 +155,174 @@ export default function ClientDetailsPage() {
         {/* Main Information */}
         <div className="lg:col-span-2 space-y-6">
           {/* Personal Details */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Personal Information
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  First Name
-                </p>
-                <p className="text-gray-900 dark:text-white font-medium">
-                  {client.first_name}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  Last Name
-                </p>
-                <p className="text-gray-900 dark:text-white font-medium">
-                  {client.last_name}
-                </p>
-              </div>
-              {client.email && (
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                    Email
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-gray-400" />
-                    <a
-                      href={`mailto:${client.email}`}
-                      className="text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      {client.email}
-                    </a>
-                  </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <div className="flex items-center gap-2">
+                  {client.first_name} {client.last_name}
                 </div>
-              )}
-              {client.phone && (
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                    Phone
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-gray-400" />
-                    <a
-                      href={`tel:${client.phone}`}
-                      className="text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      {client.phone}
-                    </a>
-                  </div>
-                </div>
-              )}
-              {client.date_of_birth && (
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                    Date of Birth
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <p className="text-gray-900 dark:text-white font-medium">
-                      {formatDate(client.date_of_birth)}
+              </CardTitle>
+              <CardDescription>
+                Hasta Bilgileri
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {client.email && (
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Email
                     </p>
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-gray-400" />
+                      <a
+                        href={`mailto:${client.email}`}
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        {client.email}
+                      </a>
+                    </div>
                   </div>
+                )}
+                {client.phone && (
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Phone
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-gray-400" />
+                      <a
+                        href={`tel:${client.phone}`}
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        {client.phone}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                {client.date_of_birth && (
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Date of Birth
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <p className="text-gray-900 dark:text-white font-medium">
+                        {formatDate(client.date_of_birth)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    Status
+                  </p>
+                  <span
+                    className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                      client.status
+                    )}`}
+                  >
+                    {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
+                  </span>
                 </div>
-              )}
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  Status
-                </p>
-                <span
-                  className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                    client.status
-                  )}`}
-                >
-                  {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                </span>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Notes */}
           {client.notes && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Notes
-              </h2>
-              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                {client.notes}
-              </p>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Notes
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="whitespace-pre-wrap text-gray-900 dark:text-white">
+                  {client.notes}
+                </p>
+              </CardContent>
+            </Card>
           )}
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Metadata */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Metadata
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  Client ID
-                </p>
-                <p className="text-xs text-gray-900 dark:text-white font-mono bg-gray-50 dark:bg-gray-900 p-2 rounded">
-                  {client.id}
-                </p>
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <div className="flex items-center gap-2">
+                  Metadata
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    Client ID
+                  </p>
+                  <p className="text-xs text-gray-900 dark:text-white font-mono bg-gray-50 dark:bg-gray-900 p-2 rounded">
+                    {client.id}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    Created
+                  </p>
+                  <p className="text-sm text-gray-900 dark:text-white">
+                    {formatDateTime(client.created_at)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    Last Updated
+                  </p>
+                  <p className="text-sm text-gray-900 dark:text-white">
+                    {formatDateTime(client.updated_at)}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  Created
-                </p>
-                <p className="text-sm text-gray-900 dark:text-white">
-                  {formatDateTime(client.created_at)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  Last Updated
-                </p>
-                <p className="text-sm text-gray-900 dark:text-white">
-                  {formatDateTime(client.updated_at)}
-                </p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Quick Actions */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Quick Actions
-            </h2>
-            <div className="space-y-2">
-              {client.email && (
-                <a
-                  href={`mailto:${client.email}`}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <Mail className="w-4 h-4" />
-                  Send Email
-                </a>
-              )}
-              {client.phone && (
-                <a
-                  href={`tel:${client.phone}`}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <Phone className="w-4 h-4" />
-                  Call Client
-                </a>
-              )}
-            </div>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <div className="flex items-center gap-2">
+                  Quick Actions
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {client.email && (
+                  <a
+                    href={`mailto:${client.email}`}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Send Email
+                  </a>
+                )}
+                {client.phone && (
+                  <a
+                    href={`tel:${client.phone}`}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    <Phone className="w-4 h-4" />
+                    Call Client
+                  </a>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
