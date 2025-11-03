@@ -1,24 +1,79 @@
-/**
- * Admin Panel - Coming Soon
- * This will be implemented in Phase 2
- */
-export default function AdminPage() {
+import { Users, Settings, Building2 } from "lucide-react";
+import Link from "next/link";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+export default function AdminDashboardPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-      <div className="text-center">
-        <div className="text-6xl mb-4">🔧</div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Admin Panel Coming Soon
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          Admin Dashboard
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
-          The admin panel will be available in Phase 2 of development.
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          Manage practices, practitioners, settings, and system configuration
         </p>
-        <a
-          href="/dashboard"
-          className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Back to Dashboard
-        </a>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Practices Management Card */}
+        <Link href="/admin/practices">
+          <Card className="transition-all hover:shadow-lg hover:scale-105 cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Building2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+                <CardTitle>Practices</CardTitle>
+              </div>
+              <CardDescription>
+                Manage practice organizations and locations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                View, create, edit, and manage practice information and status
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Practitioners Management Card */}
+        <Link href="/admin/practitioners">
+          <Card className="transition-all hover:shadow-lg hover:scale-105 cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                <CardTitle>Practitioners</CardTitle>
+              </div>
+              <CardDescription>
+                Manage practitioner accounts and permissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                View, create, edit, and manage practitioner status
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Settings Card */}
+        <Link href="/admin/settings">
+          <Card className="transition-all hover:shadow-lg hover:scale-105 cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Settings className="h-6 w-6 text-gray-600 dark:text-gray-400" />
+                <CardTitle>Settings</CardTitle>
+              </div>
+              <CardDescription>
+                Configure system settings and preferences
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Manage system-wide configuration options
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </div>
   );

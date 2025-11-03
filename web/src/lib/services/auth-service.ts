@@ -74,9 +74,23 @@ export class ServerAuthService {
         password: validated.password,
       })
 
+      // Fetch user profile to include role information
+      let profile = null
+      if (result.user) {
+        try {
+          profile = await profileRepository.findByUserId(result.user.id)
+        } catch (error) {
+          // Log error but don't fail sign-in if profile fetch fails
+          console.error('Failed to fetch user profile:', error)
+        }
+      }
+
       return {
         success: true,
-        data: result,
+        data: {
+          ...result,
+          profile,
+        },
       }
     } catch (error) {
       if (error instanceof ValidationError) {

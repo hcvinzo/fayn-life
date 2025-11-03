@@ -11,14 +11,22 @@ export type PracticeInsert = Database['public']['Tables']['practices']['Insert']
 export type PracticeUpdate = Database['public']['Tables']['practices']['Update']
 
 /**
+ * Practice status enum
+ */
+export type PracticeStatus = 'active' | 'suspended' | 'inactive'
+
+/**
  * Practice domain model
  */
 export interface Practice {
   id: string
   name: string
-  description: string | null
-  createdAt: Date
-  updatedAt: Date
+  address: string | null
+  phone: string | null
+  email: string | null
+  status: PracticeStatus
+  created_at: string
+  updated_at: string
 }
 
 /**
@@ -26,7 +34,10 @@ export interface Practice {
  */
 export interface CreatePracticeInput {
   name: string
-  description?: string | null
+  address?: string | null
+  phone?: string | null
+  email?: string | null
+  status?: PracticeStatus
 }
 
 /**
@@ -34,7 +45,10 @@ export interface CreatePracticeInput {
  */
 export interface UpdatePracticeInput {
   name?: string
-  description?: string | null
+  address?: string | null
+  phone?: string | null
+  email?: string | null
+  status?: PracticeStatus
 }
 
 /**
@@ -42,4 +56,5 @@ export interface UpdatePracticeInput {
  */
 export interface PracticeFilters {
   search?: string
+  status?: PracticeStatus | 'all'
 }

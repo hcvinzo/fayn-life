@@ -25,10 +25,15 @@ export default function LoginPage() {
 
     try {
       // Use API client instead of server action
-      await authApi.signIn(email, password);
+      const result = await authApi.signIn(email, password);
 
-      // Redirect on success
-      router.push("/dashboard");
+      // Check user role to determine redirect
+      // The middleware will handle the actual routing, but we can set initial redirect
+      if (result.profile?.role === 'admin') {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sign in");

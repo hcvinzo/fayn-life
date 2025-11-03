@@ -15,11 +15,12 @@ export class PracticeRepository extends BaseRepository<'practices'> {
   }
 
   /**
-   * Find practices with search filtering
+   * Find practices with search and status filtering
    * @param search - Optional search string to filter by name
+   * @param status - Optional status filter
    * @returns Array of practices
    */
-  async findAllWithSearch(search?: string): Promise<PracticeRow[]> {
+  async findAllWithFilters(search?: string, status?: string): Promise<PracticeRow[]> {
     try {
       let query = this.db
         .from(this.tableName)
@@ -28,6 +29,10 @@ export class PracticeRepository extends BaseRepository<'practices'> {
 
       if (search && search.trim()) {
         query = query.ilike('name', `%${search.trim()}%`)
+      }
+
+      if (status && status !== 'all') {
+        query = query.eq('status', status)
       }
 
       const { data, error } = await query
@@ -41,6 +46,13 @@ export class PracticeRepository extends BaseRepository<'practices'> {
       if (error instanceof DatabaseError) throw error
       throw new DatabaseError('Unexpected error searching practices', error)
     }
+  }
+
+  /**
+   * Backward compatibility wrapper
+   */
+  async findAllWithSearch(search?: string): Promise<PracticeRow[]> {
+    return this.findAllWithFilters(search)
   }
 
   /**

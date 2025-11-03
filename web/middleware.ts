@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * Middleware to protect routes and manage authentication
@@ -15,9 +16,24 @@ export async function middleware(request: NextRequest) {
   const publicRoutes = ["/login", "/register", "/forgot-password"];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
-  // Auth routes (login, register) - redirect to dashboard if already logged in
+  // Auth routes (login, register) - redirect based on user role if already logged in
   if (isPublicRoute && user) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    // Check user role to determine where to redirect
+    try {
+      const supabase = await createClient();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      // Redirect admins to admin panel, others to dashboard
+      const redirectUrl = profile?.role === 'admin' ? '/admin' : '/dashboard';
+      return NextResponse.redirect(new URL(redirectUrl, request.url));
+    } catch (error) {
+      // If we can't fetch role, default to dashboard
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   // Protected routes - redirect to login if not authenticated
@@ -26,6 +42,26 @@ export async function middleware(request: NextRequest) {
 
   if (isProtectedRoute && !user) {
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // Admin routes - check if user has admin role
+  if (pathname.startsWith('/admin') && user) {
+    try {
+      const supabase = await createClient();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      // If not admin, redirect to dashboard
+      if (!profile || profile.role !== 'admin') {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+      }
+    } catch (error) {
+      // If we can't verify role, redirect to dashboard for safety
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   return supabaseResponse;
