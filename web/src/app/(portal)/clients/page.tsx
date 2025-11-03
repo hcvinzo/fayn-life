@@ -1,24 +1,28 @@
 "use client";
 
-import { Search, Plus, Edit, Eye, Archive } from "lucide-react";
+import { Search, Plus, Edit, Eye, Archive, Loader2 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { clientApi, type Client, type ClientFilters } from "@/lib/api/client-api";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 /**
  * Clients page
  * Displays list of all clients with search and filter capabilities
  */
 export default function ClientsPage() {
+  const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<ClientFilters["status"] | "all">("all");
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // Status badge color helper
   const getStatusColor = (status: string) => {
@@ -177,6 +181,12 @@ export default function ClientsPage() {
     fetchClients();
   }, [fetchClients]);
 
+  // Handle add client navigation
+  const handleAddClient = () => {
+    setIsNavigating(true);
+    router.push("/clients/new");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -188,13 +198,22 @@ export default function ClientsPage() {
             Manage your client database
           </p>
         </div>
-        <Link
-          href="/clients/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        <Button
+          onClick={handleAddClient}
+          disabled={isNavigating}
         >
-          <Plus className="w-4 h-4" />
-          Add Client
-        </Link>
+          {isNavigating ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Loading...
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Client
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Search and Filters */}

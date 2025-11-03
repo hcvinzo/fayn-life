@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Filter, Eye, Edit, XCircle, PlayCircle } from "lucide-react";
+import { Plus, Filter, Eye, Edit, XCircle, PlayCircle, Loader2 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { appointmentApi, type AppointmentWithClient, type AppointmentFilters } from "@/lib/api/appointment-api";
 import { sessionApi } from "@/lib/api/session-api";
@@ -24,6 +24,7 @@ export default function AppointmentsPage() {
   const [statusFilter, setStatusFilter] = useState<AppointmentFilters["status"] | "all">("all");
   const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month">("all");
   const [startingSessions, setStartingSessions] = useState<Set<string>>(new Set());
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // Fetch appointments
   const fetchAppointments = useCallback(async () => {
@@ -112,6 +113,12 @@ export default function AppointmentsPage() {
         return next;
       });
     }
+  };
+
+  // Handle new appointment navigation
+  const handleNewAppointment = () => {
+    setIsNavigating(true);
+    router.push("/appointments/new");
   };
 
   // Status badge color helper
@@ -229,14 +236,20 @@ export default function AppointmentsPage() {
               <Eye className="w-4 h-4" />
             </Link>
             {appointment.status === "confirmed" && !appointment.has_session && (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => handleStartSession(appointment)}
                 disabled={startingSessions.has(appointment.id)}
-                className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 h-8 w-8 p-0"
                 title="Start session"
               >
-                <PlayCircle className="w-4 h-4" />
-              </button>
+                {startingSessions.has(appointment.id) ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <PlayCircle className="w-4 h-4" />
+                )}
+              </Button>
             )}
             {appointment.status !== "cancelled" && appointment.status !== "completed" && (
               <>
@@ -276,9 +289,20 @@ export default function AppointmentsPage() {
           </p>
         </div>
         <Button
-          onClick={() => router.push("/appointments/new")}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Appointment
+          onClick={handleNewAppointment}
+          disabled={isNavigating}
+        >
+          {isNavigating ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading...
+            </>
+          ) : (
+            <>
+              <Plus className="mr-2 h-4 w-4" />
+              New Appointment
+            </>
+          )}
         </Button>
       </div>
 

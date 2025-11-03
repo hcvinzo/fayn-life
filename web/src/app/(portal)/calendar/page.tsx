@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { appointmentApi, type AppointmentWithClient } from "@/lib/api/appointment-api";
 import Link from "next/link";
@@ -20,6 +20,7 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"month" | "week" | "day">("month");
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // Fetch appointments for the current month
   useEffect(() => {
@@ -63,6 +64,12 @@ export default function CalendarPage() {
   // Navigate to today
   const goToToday = () => {
     setCurrentDate(new Date());
+  };
+
+  // Handle new appointment navigation
+  const handleNewAppointment = () => {
+    setIsNavigating(true);
+    router.push("/appointments/new");
   };
 
   // Get month name and year
@@ -186,9 +193,23 @@ export default function CalendarPage() {
             View your appointments in calendar format
           </p>
         </div>
-        <Button size="sm" variant="default" onClick={() => router.push("/appointments/new")}>
-          <Plus className="w-4 h-4 mr-2" />
-          New Appointment
+        <Button
+          size="sm"
+          variant="default"
+          onClick={handleNewAppointment}
+          disabled={isNavigating}
+        >
+          {isNavigating ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Loading...
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4 mr-2" />
+              New Appointment
+            </>
+          )}
         </Button>
       </div>
 

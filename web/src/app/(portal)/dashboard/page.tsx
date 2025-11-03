@@ -17,7 +17,8 @@ import {
   CheckCircle2Icon,
   PlayCircle,
   Calendar,
-  CalendarOff
+  CalendarOff,
+  Loader2
 } from "lucide-react"
 import { StatsCard } from "@/components/ui/stats-card"
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,6 +35,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [startingSessions, setStartingSessions] = useState<Set<string>>(new Set())
+  const [isNavigatingToNewAppointment, setIsNavigatingToNewAppointment] = useState(false)
+  const [isNavigatingToCalendar, setIsNavigatingToCalendar] = useState(false)
 
   useEffect(() => {
     loadDashboardData()
@@ -99,6 +102,18 @@ export default function DashboardPage() {
     }
   }
 
+  // Handle new appointment navigation
+  function handleNewAppointment() {
+    setIsNavigatingToNewAppointment(true)
+    router.push("/appointments/new")
+  }
+
+  // Handle calendar navigation
+  function handleViewCalendar() {
+    setIsNavigatingToCalendar(true)
+    router.push("/calendar")
+  }
+
   // Get status color
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -156,19 +171,28 @@ export default function DashboardPage() {
         />
 
         {/* Quick Action - New Appointment */}
-        <Link
-          href="/appointments/new"
-          className="bg-gradient-to-br rounded-lg shadow p-6 border border-blue-400 transition-all hover:shadow-lg text-white group"
+        <button
+          onClick={handleNewAppointment}
+          disabled={isNavigatingToNewAppointment}
+          className="bg-gradient-to-br rounded-lg shadow p-6 border border-blue-400 transition-all hover:shadow-lg text-white group disabled:opacity-70 disabled:cursor-not-allowed text-left"
         >
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium">Quick Action</div>
-            <PlusIcon className="h-5 w-5 group-hover:scale-110 transition-transform" />
+            {isNavigatingToNewAppointment ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <PlusIcon className="h-5 w-5 group-hover:scale-110 transition-transform" />
+            )}
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold">New Appointment</div>
-            <div className="text-sm text-blue-100 mt-1">Schedule now</div>
+            <div className="text-2xl font-bold">
+              {isNavigatingToNewAppointment ? "Loading..." : "New Appointment"}
+            </div>
+            <div className="text-sm text-blue-100 mt-1">
+              {isNavigatingToNewAppointment ? "Please wait..." : "Schedule now"}
+            </div>
           </div>
-        </Link>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -181,8 +205,21 @@ export default function DashboardPage() {
               Today's Appointments
             </CardTitle>
             <CardAction>
-              <Button variant="ghost" size="sm" className="hidden md:flex" onClick={() => router.push("/appointments/new")}>
-                + New
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hidden md:flex"
+                onClick={handleNewAppointment}
+                disabled={isNavigatingToNewAppointment}
+              >
+                {isNavigatingToNewAppointment ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  "+ New"
+                )}
               </Button>
             </CardAction>
           </CardHeader>
@@ -194,8 +231,21 @@ export default function DashboardPage() {
                 </p>
                 <Button
                   variant="outline"
-                  onClick={() => router.push("/appointments/new")}>
-                  <Calendar className="mr-2 h-4 w-4" />Schedule Appointment</Button>
+                  onClick={handleNewAppointment}
+                  disabled={isNavigatingToNewAppointment}
+                >
+                  {isNavigatingToNewAppointment ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Schedule Appointment
+                    </>
+                  )}
+                </Button>
               </div>
             ) : (
               <div className="space-y-3">
@@ -237,18 +287,29 @@ export default function DashboardPage() {
                           {appointment.appointment_type === "in_person" ? "In-Person" : "Online"}
                         </span>
                         {appointment.status === "confirmed" && (
-                          <button
+                          <Button
+                            variant="default"
+                            size="sm"
                             onClick={(e) => {
                               e.preventDefault()
                               handleStartSession(appointment)
                             }}
                             disabled={startingSessions.has(appointment.id)}
-                            className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                            className="bg-green-600 hover:bg-green-700 text-white text-xs h-7"
                             title="Start session"
                           >
-                            <PlayCircle className="h-3 w-3" />
-                            {startingSessions.has(appointment.id) ? "Starting..." : "Start"}
-                          </button>
+                            {startingSessions.has(appointment.id) ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                Starting...
+                              </>
+                            ) : (
+                              <>
+                                <PlayCircle className="h-3 w-3 mr-1" />
+                                Start
+                              </>
+                            )}
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -269,8 +330,21 @@ export default function DashboardPage() {
                 Upcoming
               </CardTitle>
               <CardAction>
-                <Button variant="ghost" size="sm" className="hidden md:flex" onClick={() => router.push("/calendar")}>
-                  View Calendar
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden md:flex"
+                  onClick={handleViewCalendar}
+                  disabled={isNavigatingToCalendar}
+                >
+                  {isNavigatingToCalendar ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    "View Calendar"
+                  )}
                 </Button>
               </CardAction>
             </CardHeader>
@@ -323,9 +397,20 @@ export default function DashboardPage() {
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={() => router.push("/appointments/new")}
+                onClick={handleNewAppointment}
+                disabled={isNavigatingToNewAppointment}
               >
-                <Calendar className="mr-2 h-4 w-4" />New Appointment
+                {isNavigatingToNewAppointment ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="mr-2 h-4 w-4" />
+                    New Appointment
+                  </>
+                )}
               </Button>
 
               <ExceptionDialog

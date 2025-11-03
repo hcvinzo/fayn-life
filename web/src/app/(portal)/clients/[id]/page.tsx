@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { clientApi, type Client } from "@/lib/api/client-api";
 import { appointmentApi, type AppointmentWithClient } from "@/lib/api/appointment-api";
 import { sessionApi } from "@/lib/api/session-api";
-import { ArrowLeft, Edit, Archive, Mail, Phone, Calendar, FileText, PlayCircle, Plus } from "lucide-react";
+import { ArrowLeft, Edit, Archive, Mail, Phone, Calendar, FileText, PlayCircle, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,8 @@ export default function ClientDetailsPage() {
   const [appointments, setAppointments] = useState<AppointmentWithClient[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(true);
   const [startingSession, setStartingSession] = useState(false);
+  const [navigatingToNewAppointment, setNavigatingToNewAppointment] = useState(false);
+  const [navigatingToEdit, setNavigatingToEdit] = useState(false);
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -116,6 +118,16 @@ export default function ClientDetailsPage() {
     } finally {
       setStartingSession(false);
     }
+  };
+
+  const handleNewAppointment = () => {
+    setNavigatingToNewAppointment(true);
+    router.push(`/appointments/new?client_id=${id}`);
+  };
+
+  const handleEdit = () => {
+    setNavigatingToEdit(true);
+    router.push(`/clients/${id}/edit`);
   };
 
   const getStatusColor = (status: string) => {
@@ -218,8 +230,21 @@ export default function ClientDetailsPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="default" size="sm" className="hidden md:flex" onClick={() => router.push(`/clients/${id}/edit`)}>
-            Edit
+          <Button
+            variant="default"
+            size="sm"
+            className="hidden md:flex"
+            onClick={handleEdit}
+            disabled={navigatingToEdit}
+          >
+            {navigatingToEdit ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              "Edit"
+            )}
           </Button>
           {client.status !== "archived" && (
             <Button variant="destructive" size="sm" className="hidden md:flex" onClick={handleArchive}>
@@ -342,10 +367,20 @@ export default function ClientDetailsPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => router.push(`/appointments/new?client_id=${id}`)}
+                  onClick={handleNewAppointment}
+                  disabled={navigatingToNewAppointment}
                 >
-                  <Plus className="w-4 h-4" />
-                  New Appointment
+                  {navigatingToNewAppointment ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      New Appointment
+                    </>
+                  )}
                 </Button>
               </div>
             </CardHeader>
@@ -362,10 +397,20 @@ export default function ClientDetailsPage() {
                   </p>
                   <Button
                     size="sm"
-                    onClick={() => router.push(`/appointments/new?client_id=${id}`)}
+                    onClick={handleNewAppointment}
+                    disabled={navigatingToNewAppointment}
                   >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Schedule Appointment
+                    {navigatingToNewAppointment ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 mr-1" />
+                        Schedule Appointment
+                      </>
+                    )}
                   </Button>
                 </div>
               ) : (
@@ -403,7 +448,11 @@ export default function ClientDetailsPage() {
                           disabled={startingSession}
                           className="ml-3"
                         >
-                          <PlayCircle className="w-4 h-4 mr-1" />
+                          {startingSession ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <PlayCircle className="w-4 h-4 mr-1" />
+                          )}
                         </Button>
                       )}
                     </div>

@@ -457,6 +457,8 @@ Complete CRUD operations for client records with the following capabilities:
 **Key Components:**
 - [client-form.tsx](web/src/components/portal/client-form.tsx) - Reusable form for create/edit
 - Form validates: first_name, last_name, email, phone, date_of_birth, status, notes
+- Uses ShadCN Select component with react-hook-form Controller for status field
+- Provides consistent UI/UX with other portal components
 
 **Architecture Stack:**
 - API Client: [client-api.ts](web/src/lib/api/client-api.ts)
@@ -674,6 +676,56 @@ Complete system for managing practitioner working schedules, hours, and exceptio
 - Flexible exception system for real-world scheduling needs
 - Clear visibility into practitioner's schedule
 - Easy bulk operations for common scenarios
+
+### UI/UX Improvements
+
+**Loading States for Navigation Buttons:**
+All navigation buttons across the portal now implement consistent loading states to improve user feedback during page transitions:
+
+**Implementation Pattern:**
+```typescript
+const [isNavigating, setIsNavigating] = useState(false);
+
+const handleNavigation = () => {
+  setIsNavigating(true);
+  router.push("/destination");
+};
+
+<Button onClick={handleNavigation} disabled={isNavigating}>
+  {isNavigating ? (
+    <>
+      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+      Loading...
+    </>
+  ) : (
+    <>
+      <Icon className="w-4 h-4 mr-2" />
+      Button Text
+    </>
+  )}
+</Button>
+```
+
+**Pages with Loading States:**
+- [dashboard/page.tsx](web/src/app/(portal)/dashboard/page.tsx) - New Appointment (multiple instances), View Calendar, Start Session buttons
+- [appointments/page.tsx](web/src/app/(portal)/appointments/page.tsx) - New Appointment, Start Session buttons
+- [clients/page.tsx](web/src/app/(portal)/clients/page.tsx) - Add Client button
+- [clients/[id]/page.tsx](web/src/app/(portal)/clients/[id]/page.tsx) - Edit, New Appointment buttons
+- [calendar/page.tsx](web/src/app/(portal)/calendar/page.tsx) - New Appointment button
+
+**Benefits:**
+- Clear visual feedback during navigation
+- Prevents double-clicks and duplicate actions
+- Consistent user experience across all portal pages
+- Professional loading states with Loader2 spinner from lucide-react
+- Disabled state prevents user confusion
+
+**ShadCN Component Integration:**
+- Replaced native HTML `<select>` elements with ShadCN Select components
+- Implemented react-hook-form Controller for proper form integration
+- Consistent styling and dark mode support across all form components
+- Better accessibility and keyboard navigation
+- Examples: Client form status field, appointment filters, date filters
 
 ## Code Style Notes
 
