@@ -8,6 +8,9 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import { clientApi, type Client } from "@/lib/api/client-api";
 import { availabilityCheckApi } from "@/lib/api/availability-api";
+import { usePermissions } from "@/hooks/use-permissions";
+import { useAuth } from "@/hooks/use-auth";
+import { useAssignedPractitioners } from "@/hooks/use-assigned-practitioners";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 // Form schema
 const appointmentFormSchema = z.object({
   client_id: z.string().min(1, 'Please select a client'),
+  practitioner_id: z.string().min(1, 'Please select a practitioner').optional(), // Optional for practitioners, required for assistants
   appointment_type: z.enum(['in_person', 'online']),
   duration: z.number().min(15).max(480),
   date: z.date({ message: 'Please select a date' }),
@@ -45,6 +49,7 @@ type AppointmentFormData = z.infer<typeof appointmentFormSchema>;
 interface AppointmentFormProps {
   defaultValues?: Partial<{
     client_id: string;
+    practitioner_id?: string;
     appointment_type: 'in_person' | 'online';
     duration: number;
     date: string;
@@ -54,6 +59,7 @@ interface AppointmentFormProps {
   }>;
   onSubmit: (data: {
     client_id: string;
+    practitioner_id: string;
     appointment_type: 'in_person' | 'online';
     start_time: string;
     end_time: string;
@@ -78,6 +84,10 @@ export function AppointmentForm({
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
 
+  const { isAssistant } = usePermissions();
+  const { profile } = useAuth();
+  const { practitioners: assignedPractitioners, isLoading: loadingPractitioners } = useAssignedPractitioners();
+
   const timeSlots = Array.from({ length: 37 }, (_, i) => {
     const totalMinutes = i * 15;
     const hour = Math.floor(totalMinutes / 60) + 9;
@@ -99,6 +109,8 @@ export function AppointmentForm({
       appointment_type: "in_person",
       duration: 60,
       time: "",
+      // For practitioners, pre-fill their own ID
+      practitioner_id: !isAssistant && profile?.id ? profile.id : undefined,
       ...convertedDefaultValues,
     },
   });
@@ -153,8 +165,19 @@ export function AppointmentForm({
         return;
       }
 
+      // For practitioners, use their own ID if not specified
+      // For assistants, use the selected practitioner_id (required)
+      const practitionerId = data.practitioner_id || profile?.id;
+
+      if (!practitionerId) {
+        setAvailabilityError('Practitioner ID is required');
+        setIsSubmitting(false);
+        return;
+      }
+
       await onSubmit({
         client_id: data.client_id,
+        practitioner_id: practitionerId,
         appointment_type: data.appointment_type,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
@@ -227,6 +250,37 @@ export function AppointmentForm({
                   </FormItem>
                 )}
               />
+
+              {/* Practitioner Selection - Only for Assistants */}
+              {isAssistant && (
+                <FormField
+                  control={form.control}
+                  name="practitioner_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Practitioner *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={loadingPractitioners}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={loadingPractitioners ? "Loading..." : "Select a practitioner"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {assignedPractitioners.map((practitioner) => (
+                            <SelectItem key={practitioner.id} value={practitioner.id}>
+                              {practitioner.full_name || practitioner.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">
+                        You can only create appointments for assigned practitioners
+                      </p>
+                    </FormItem>
+                  )}
+                />
+              )}
 
               {/* Appointment Type */}
               <FormField

@@ -20,7 +20,7 @@ export interface Database {
           id: string;
           email: string;
           full_name: string | null;
-          role: "admin" | "practitioner" | "staff";
+          role: "admin" | "practitioner" | "staff" | "assistant";
           practice_id: string | null;
           avatar_url: string | null;
           created_at: string;
@@ -30,7 +30,7 @@ export interface Database {
           id: string;
           email: string;
           full_name?: string | null;
-          role?: "admin" | "practitioner" | "staff";
+          role?: "admin" | "practitioner" | "staff" | "assistant";
           practice_id?: string | null;
           avatar_url?: string | null;
           created_at?: string;
@@ -40,7 +40,7 @@ export interface Database {
           id?: string;
           email?: string;
           full_name?: string | null;
-          role?: "admin" | "practitioner" | "staff";
+          role?: "admin" | "practitioner" | "staff" | "assistant";
           practice_id?: string | null;
           avatar_url?: string | null;
           created_at?: string;
@@ -240,6 +240,78 @@ export interface Database {
           updated_at?: string;
         };
       };
+      permissions: {
+        Row: {
+          id: string;
+          code: string;
+          name: string;
+          description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          name: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          code?: string;
+          name?: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      role_permissions: {
+        Row: {
+          id: string;
+          role: "admin" | "practitioner" | "staff" | "assistant";
+          permission_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          role: "admin" | "practitioner" | "staff" | "assistant";
+          permission_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          role?: "admin" | "practitioner" | "staff" | "assistant";
+          permission_id?: string;
+          created_at?: string;
+        };
+      };
+      practitioner_assignments: {
+        Row: {
+          id: string;
+          assistant_id: string;
+          practitioner_id: string;
+          practice_id: string;
+          created_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          assistant_id: string;
+          practitioner_id: string;
+          practice_id: string;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          assistant_id?: string;
+          practitioner_id?: string;
+          practice_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -248,12 +320,13 @@ export interface Database {
       [_ in never]: never;
     };
     Enums: {
-      user_role: "admin" | "practitioner" | "staff";
+      user_role: "admin" | "practitioner" | "staff" | "assistant";
       appointment_status: "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
       appointment_type: "in_person" | "online";
       client_status: "active" | "inactive" | "archived";
       session_status: "in_progress" | "completed" | "cancelled";
       entity_type: "client_sessions" | "clients" | "appointments" | "profiles";
+      availability_status: "off" | "online_only" | "in_person_only";
     };
   };
 }

@@ -6,7 +6,7 @@
 import { z } from 'zod';
 
 export const practitionerStatusSchema = z.enum(['active', 'suspended', 'blocked', 'pending']);
-export const userRoleSchema = z.enum(['admin', 'practitioner', 'staff']);
+export const userRoleSchema = z.enum(['admin', 'practitioner', 'staff', 'assistant']);
 
 export const createPractitionerSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -14,6 +14,17 @@ export const createPractitionerSchema = z.object({
   role: userRoleSchema,
   status: practitionerStatusSchema.optional().default('active'),
   practice_id: z.string().uuid('Invalid practice ID').nullable().optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+  confirm_password: z.string().optional(),
+}).refine((data) => {
+  // Only validate password match if password is provided
+  if (data.password) {
+    return data.password === data.confirm_password;
+  }
+  return true;
+}, {
+  message: 'Passwords must match',
+  path: ['confirm_password'],
 });
 
 export const updatePractitionerSchema = z.object({

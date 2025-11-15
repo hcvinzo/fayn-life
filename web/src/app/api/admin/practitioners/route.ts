@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { practitionerService } from '@/lib/services/practitioner-service';
 import { createClient } from '@/lib/supabase/server';
+import type { PractitionerFilters } from '@/types/practitioner';
 
 // Helper to check if user is admin
 async function checkAdminAccess() {
@@ -44,10 +45,10 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams;
-    const filters = {
+    const filters: PractitionerFilters = {
       search: searchParams.get('search') || undefined,
-      status: searchParams.get('status') || undefined,
-      role: searchParams.get('role') || undefined,
+      status: (searchParams.get('status') as any) || undefined,
+      role: (searchParams.get('role') as any) || undefined,
     };
 
     const result = await practitionerService.getAll(filters);

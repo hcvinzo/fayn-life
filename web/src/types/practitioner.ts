@@ -4,7 +4,7 @@
  */
 
 export type PractitionerStatus = 'active' | 'suspended' | 'blocked' | 'pending';
-export type UserRole = 'admin' | 'practitioner' | 'staff';
+export type UserRole = 'admin' | 'practitioner' | 'staff' | 'assistant';
 
 export interface Practitioner {
   id: string;
@@ -29,6 +29,7 @@ export interface PractitionerFilters {
   search?: string;
   status?: PractitionerStatus | 'all';
   role?: UserRole | 'all';
+  practice_id?: string;
 }
 
 export interface CreatePractitionerInput {

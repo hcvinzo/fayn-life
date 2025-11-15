@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
         .eq('id', user.id)
         .single();
 
-      // Redirect admins to admin panel, others to dashboard
+      // Redirect admins to admin panel, others (practitioners, assistants, staff) to dashboard
       const redirectUrl = profile?.role === 'admin' ? '/admin' : '/dashboard';
       return NextResponse.redirect(new URL(redirectUrl, request.url));
     } catch (error) {

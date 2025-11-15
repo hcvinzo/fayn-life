@@ -1,16 +1,16 @@
-import { Metadata } from "next";
+"use client";
+
 import Link from "next/link";
 import { Clock, ChevronRight } from "lucide-react";
-
-export const metadata: Metadata = {
-  title: "Settings",
-};
+import { usePermissions } from "@/hooks/use-permissions";
 
 /**
  * Settings page
  * Allows users to manage their profile and practice settings
  */
 export default function SettingsPage() {
+  const { canManageAvailability } = usePermissions();
+
   return (
     <div className="space-y-6">
       <div>
@@ -22,26 +22,28 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* Availability Settings Link */}
-      <Link
-        href="/settings/availability"
-        className="block bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg shadow hover:from-blue-700 hover:to-blue-800 transition-all"
-      >
-        <div className="flex items-center justify-between p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 rounded-lg">
-              <Clock className="w-6 h-6" />
+      {/* Availability Settings Link - Only for users with manage_availability permission */}
+      {canManageAvailability && (
+        <Link
+          href="/settings/availability"
+          className="block bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg shadow hover:from-blue-700 hover:to-blue-800 transition-all"
+        >
+          <div className="flex items-center justify-between p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white/20 rounded-lg">
+                <Clock className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">Availability Settings</h2>
+                <p className="text-sm text-blue-100 mt-1">
+                  Manage your working hours and schedule exceptions
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold">Availability Settings</h2>
-              <p className="text-sm text-blue-100 mt-1">
-                Manage your working hours and schedule exceptions
-              </p>
-            </div>
+            <ChevronRight className="w-6 h-6" />
           </div>
-          <ChevronRight className="w-6 h-6" />
-        </div>
-      </Link>
+        </Link>
+      )}
 
       {/* Profile Settings */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
