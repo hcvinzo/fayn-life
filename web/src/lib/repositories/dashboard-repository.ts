@@ -14,9 +14,10 @@ export class DashboardRepository {
   /**
    * Get dashboard statistics for a practice
    * @param practiceId - Practice ID
+   * @param practitionerId - Optional practitioner ID for filtering (practitioners see only their own data)
    * @returns Dashboard statistics
    */
-  async getStatistics(practiceId: string): Promise<DashboardStats> {
+  async getStatistics(practiceId: string, practitionerId?: string): Promise<DashboardStats> {
     try {
       const supabase = await createClient()
       const now = new Date()
@@ -50,20 +51,27 @@ export class DashboardRepository {
       }
 
       // Count today's appointments (all statuses except cancelled)
-      const { count: todayTotal, error: todayTotalError } = await supabase
+      let todayTotalQuery = supabase
         .from('appointments')
         .select('*', { count: 'exact', head: true })
         .eq('practice_id', practiceId)
         .gte('start_time', todayStart.toISOString())
         .lt('start_time', todayEnd.toISOString())
         .neq('status', 'cancelled')
+
+      // Filter by practitioner if specified
+      if (practitionerId) {
+        todayTotalQuery = todayTotalQuery.eq('practitioner_id', practitionerId)
+      }
+
+      const { count: todayTotal, error: todayTotalError } = await todayTotalQuery
 
       if (todayTotalError) {
         throw new DatabaseError(`Failed to count today's appointments: ${todayTotalError.message}`, todayTotalError)
       }
 
       // Count today's completed/confirmed appointments
-      const { count: todayFilled, error: todayFilledError } = await supabase
+      let todayFilledQuery = supabase
         .from('appointments')
         .select('*', { count: 'exact', head: true })
         .eq('practice_id', practiceId)
@@ -71,12 +79,19 @@ export class DashboardRepository {
         .lt('start_time', todayEnd.toISOString())
         .or('status.eq.completed,status.eq.confirmed')
 
+      // Filter by practitioner if specified
+      if (practitionerId) {
+        todayFilledQuery = todayFilledQuery.eq('practitioner_id', practitionerId)
+      }
+
+      const { count: todayFilled, error: todayFilledError } = await todayFilledQuery
+
       if (todayFilledError) {
         throw new DatabaseError(`Failed to count today's filled appointments: ${todayFilledError.message}`, todayFilledError)
       }
 
       // Count this week's appointments (all statuses except cancelled)
-      const { count: weekTotal, error: weekTotalError } = await supabase
+      let weekTotalQuery = supabase
         .from('appointments')
         .select('*', { count: 'exact', head: true })
         .eq('practice_id', practiceId)
@@ -84,18 +99,32 @@ export class DashboardRepository {
         .lt('start_time', weekEnd.toISOString())
         .neq('status', 'cancelled')
 
+      // Filter by practitioner if specified
+      if (practitionerId) {
+        weekTotalQuery = weekTotalQuery.eq('practitioner_id', practitionerId)
+      }
+
+      const { count: weekTotal, error: weekTotalError } = await weekTotalQuery
+
       if (weekTotalError) {
         throw new DatabaseError(`Failed to count week's appointments: ${weekTotalError.message}`, weekTotalError)
       }
 
       // Count this week's completed/confirmed appointments
-      const { count: weekFilled, error: weekFilledError } = await supabase
+      let weekFilledQuery = supabase
         .from('appointments')
         .select('*', { count: 'exact', head: true })
         .eq('practice_id', practiceId)
         .gte('start_time', weekStart.toISOString())
         .lt('start_time', weekEnd.toISOString())
         .or('status.eq.completed,status.eq.confirmed')
+
+      // Filter by practitioner if specified
+      if (practitionerId) {
+        weekFilledQuery = weekFilledQuery.eq('practitioner_id', practitionerId)
+      }
+
+      const { count: weekFilled, error: weekFilledError } = await weekFilledQuery
 
       if (weekFilledError) {
         throw new DatabaseError(`Failed to count week's filled appointments: ${weekFilledError.message}`, weekFilledError)
@@ -121,9 +150,10 @@ export class DashboardRepository {
   /**
    * Get today's appointments with client details
    * @param practiceId - Practice ID
+   * @param practitionerId - Optional practitioner ID for filtering (practitioners see only their own data)
    * @returns Array of today's appointments in ascending order
    */
-  async getTodayAppointments(practiceId: string): Promise<AppointmentWithClient[]> {
+  async getTodayAppointments(practiceId: string, practitionerId?: string): Promise<AppointmentWithClient[]> {
     try {
       const supabase = await createClient()
       const now = new Date()
@@ -134,7 +164,7 @@ export class DashboardRepository {
       const todayEnd = new Date(todayStart)
       todayEnd.setDate(todayEnd.getDate() + 1)
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('appointments')
         .select(`
           *,
@@ -151,6 +181,13 @@ export class DashboardRepository {
         .lt('start_time', todayEnd.toISOString())
         .order('start_time', { ascending: true })
 
+      // Filter by practitioner if specified
+      if (practitionerId) {
+        query = query.eq('practitioner_id', practitionerId)
+      }
+
+      const { data, error } = await query
+
       if (error) {
         throw new DatabaseError(`Failed to fetch today's appointments: ${error.message}`, error)
       }
@@ -165,9 +202,10 @@ export class DashboardRepository {
   /**
    * Get upcoming appointments (next 7 days) with client details
    * @param practiceId - Practice ID
+   * @param practitionerId - Optional practitioner ID for filtering (practitioners see only their own data)
    * @returns Array of upcoming appointments
    */
-  async getUpcomingAppointments(practiceId: string): Promise<AppointmentWithClient[]> {
+  async getUpcomingAppointments(practiceId: string, practitionerId?: string): Promise<AppointmentWithClient[]> {
     try {
       const supabase = await createClient()
       const now = new Date()
@@ -182,7 +220,7 @@ export class DashboardRepository {
       weekEnd.setDate(tomorrowStart.getDate() + 7)
       weekEnd.setHours(0, 0, 0, 0)
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('appointments')
         .select(`
           *,
@@ -200,6 +238,13 @@ export class DashboardRepository {
         .neq('status', 'cancelled')
         .order('start_time', { ascending: true })
         .limit(10) // Limit to 10 upcoming appointments
+
+      // Filter by practitioner if specified
+      if (practitionerId) {
+        query = query.eq('practitioner_id', practitionerId)
+      }
+
+      const { data, error } = await query
 
       if (error) {
         throw new DatabaseError(`Failed to fetch upcoming appointments: ${error.message}`, error)

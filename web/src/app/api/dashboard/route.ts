@@ -26,10 +26,10 @@ export async function GET(request: NextRequest) {
       return errorResponse('Unauthorized', 'UNAUTHORIZED', 401)
     }
 
-    // Get user's profile to find practice_id
+    // Get user's profile to find practice_id and role
     const { data: profile, error: profileError }: any = await supabase
       .from('profiles')
-      .select('practice_id')
+      .select('practice_id, role')
       .eq('id', user.id)
       .single()
 
@@ -37,8 +37,14 @@ export async function GET(request: NextRequest) {
       return errorResponse('Practice not found', 'NOT_FOUND', 404)
     }
 
-    // Get dashboard data
-    const dashboardData = await serverDashboardService.getDashboardData(profile.practice_id)
+    // Get dashboard data with role-based filtering
+    // Practitioners see only their own data
+    // Admins, staff, and assistants see practice-wide data
+    const practitionerId = profile.role === 'practitioner' ? user.id : undefined
+    const dashboardData = await serverDashboardService.getDashboardData(
+      profile.practice_id,
+      practitionerId
+    )
 
     return successResponse(dashboardData)
   } catch (error) {

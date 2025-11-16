@@ -23,11 +23,13 @@ export class AppointmentRepository extends BaseRepository<'appointments'> {
    * Find all appointments for a practice with optional filtering
    * @param practiceId - Practice ID to filter by
    * @param filters - Optional filters (status, client_id, date range)
+   * @param practitionerId - Optional practitioner ID for role-based filtering (practitioners see only their own data)
    * @returns Array of appointments
    */
   async findByPractice(
     practiceId: string,
-    filters?: AppointmentFilters
+    filters?: AppointmentFilters,
+    practitionerId?: string
   ): Promise<AppointmentRow[]> {
     try {
       let query = this.db
@@ -35,6 +37,11 @@ export class AppointmentRepository extends BaseRepository<'appointments'> {
         .select('*')
         .eq('practice_id', practiceId)
         .order('start_time', { ascending: true })
+
+      // Apply practitioner filter (role-based access)
+      if (practitionerId) {
+        query = query.eq('practitioner_id', practitionerId)
+      }
 
       // Apply status filter
       if (filters?.status) {
@@ -72,11 +79,13 @@ export class AppointmentRepository extends BaseRepository<'appointments'> {
    * Find appointments with client details (JOIN)
    * @param practiceId - Practice ID to filter by
    * @param filters - Optional filters
+   * @param practitionerId - Optional practitioner ID for role-based filtering (practitioners see only their own data)
    * @returns Array of appointments with client data
    */
   async findByPracticeWithClient(
     practiceId: string,
-    filters?: AppointmentFilters
+    filters?: AppointmentFilters,
+    practitionerId?: string
   ): Promise<AppointmentWithClient[]> {
     try {
       let query = this.db
@@ -96,6 +105,11 @@ export class AppointmentRepository extends BaseRepository<'appointments'> {
         `)
         .eq('practice_id', practiceId)
         .order('start_time', { ascending: true })
+
+      // Apply practitioner filter (role-based access)
+      if (practitionerId) {
+        query = query.eq('practitioner_id', practitionerId)
+      }
 
       // Apply filters
       if (filters?.status) {
@@ -245,15 +259,20 @@ export class AppointmentRepository extends BaseRepository<'appointments'> {
    * Count appointments by status for a practice
    * @param practiceId - Practice ID
    * @param status - Optional status filter
+   * @param practitionerId - Optional practitioner ID for role-based filtering
    * @returns Count of appointments
    */
   async countByPractice(
     practiceId: string,
-    status?: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
+    status?: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show',
+    practitionerId?: string
   ): Promise<number> {
     const filters: any = { practice_id: practiceId }
     if (status) {
       filters.status = status
+    }
+    if (practitionerId) {
+      filters.practitioner_id = practitionerId
     }
     return this.count(filters)
   }

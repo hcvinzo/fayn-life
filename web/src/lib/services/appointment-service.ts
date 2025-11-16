@@ -27,17 +27,19 @@ export class AppointmentService {
    * @param practiceId - Practice ID
    * @param filters - Optional filters (status, client_id, date range)
    * @param userId - User ID for authorization
+   * @param practitionerId - Optional practitioner ID for role-based filtering (practitioners see only their own data)
    * @returns List of appointments
    */
   async getAppointmentsByPractice(
     practiceId: string,
     filters?: AppointmentFilters,
-    userId?: string
+    userId?: string,
+    practitionerId?: string
   ): Promise<ServiceResult<Appointment[]>> {
     try {
       // TODO: Add authorization - verify user belongs to practice
 
-      const appointments = await appointmentRepository.findByPractice(practiceId, filters)
+      const appointments = await appointmentRepository.findByPractice(practiceId, filters, practitionerId)
 
       return {
         success: true,
@@ -57,17 +59,19 @@ export class AppointmentService {
    * @param practiceId - Practice ID
    * @param filters - Optional filters
    * @param userId - User ID for authorization
+   * @param practitionerId - Optional practitioner ID for role-based filtering (practitioners see only their own data)
    * @returns List of appointments with client data
    */
   async getAppointmentsWithClient(
     practiceId: string,
     filters?: AppointmentFilters,
-    userId?: string
+    userId?: string,
+    practitionerId?: string
   ): Promise<ServiceResult<AppointmentWithClient[]>> {
     try {
       // TODO: Add authorization - verify user belongs to practice
 
-      const appointments = await appointmentRepository.findByPracticeWithClient(practiceId, filters)
+      const appointments = await appointmentRepository.findByPracticeWithClient(practiceId, filters, practitionerId)
 
       return {
         success: true,
@@ -401,11 +405,13 @@ export class AppointmentService {
    * Get appointment statistics for a practice
    * @param practiceId - Practice ID
    * @param userId - User ID for authorization
+   * @param practitionerId - Optional practitioner ID for role-based filtering (practitioners see only their own stats)
    * @returns Appointment statistics
    */
   async getAppointmentStats(
     practiceId: string,
-    userId?: string
+    userId?: string,
+    practitionerId?: string
   ): Promise<ServiceResult<{
     total: number
     scheduled: number
@@ -418,12 +424,12 @@ export class AppointmentService {
       // TODO: Add authorization - verify user belongs to practice
 
       const [total, scheduled, confirmed, completed, cancelled, no_show] = await Promise.all([
-        appointmentRepository.countByPractice(practiceId),
-        appointmentRepository.countByPractice(practiceId, 'scheduled'),
-        appointmentRepository.countByPractice(practiceId, 'confirmed'),
-        appointmentRepository.countByPractice(practiceId, 'completed'),
-        appointmentRepository.countByPractice(practiceId, 'cancelled'),
-        appointmentRepository.countByPractice(practiceId, 'no_show'),
+        appointmentRepository.countByPractice(practiceId, undefined, practitionerId),
+        appointmentRepository.countByPractice(practiceId, 'scheduled', practitionerId),
+        appointmentRepository.countByPractice(practiceId, 'confirmed', practitionerId),
+        appointmentRepository.countByPractice(practiceId, 'completed', practitionerId),
+        appointmentRepository.countByPractice(practiceId, 'cancelled', practitionerId),
+        appointmentRepository.countByPractice(practiceId, 'no_show', practitionerId),
       ])
 
       return {

@@ -3,10 +3,11 @@
  * Admin endpoints for managing practitioners
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { practitionerService } from '@/lib/services/practitioner-service';
 import { createClient } from '@/lib/supabase/server';
 import type { PractitionerFilters } from '@/types/practitioner';
+import { successResponse, errorResponse, handleApiError } from '@/lib/utils/response';
 
 // Helper to check if user is admin
 async function checkAdminAccess() {
@@ -14,21 +15,21 @@ async function checkAdminAccess() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    return { authorized: false, error: 'Unauthorized' };
+    return { authorized: false, error: 'Unauthorized' } as const;
   }
 
   // Get user profile to check role
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single();
+    .single<{ role: string }>();
 
-  if (!profile || profile.role !== 'admin') {
-    return { authorized: false, error: 'Forbidden: Admin access required' };
+  if (profileError || !profile || profile.role !== 'admin') {
+    return { authorized: false, error: 'Forbidden: Admin access required' } as const;
   }
 
-  return { authorized: true };
+  return { authorized: true } as const;
 }
 
 /**
@@ -40,7 +41,11 @@ export async function GET(request: NextRequest) {
     // Check admin access
     const { authorized, error } = await checkAdminAccess();
     if (!authorized) {
-      return NextResponse.json({ error }, { status: error === 'Unauthorized' ? 401 : 403 });
+      return errorResponse(
+        error!,
+        error === 'Unauthorized' ? 'UNAUTHORIZED' : 'FORBIDDEN',
+        error === 'Unauthorized' ? 401 : 403
+      );
     }
 
     // Get query parameters
@@ -49,21 +54,19 @@ export async function GET(request: NextRequest) {
       search: searchParams.get('search') || undefined,
       status: (searchParams.get('status') as any) || undefined,
       role: (searchParams.get('role') as any) || undefined,
+      practice_id: searchParams.get('practice_id') || undefined,
     };
 
     const result = await practitionerService.getAll(filters);
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
+      return errorResponse(result.error || 'Failed to fetch practitioners', 'FETCH_ERROR', 500);
     }
 
-    return NextResponse.json(result.data);
+    return successResponse(result.data);
   } catch (error) {
     console.error('GET /api/admin/practitioners error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
 
@@ -76,22 +79,23 @@ export async function POST(request: NextRequest) {
     // Check admin access
     const { authorized, error } = await checkAdminAccess();
     if (!authorized) {
-      return NextResponse.json({ error }, { status: error === 'Unauthorized' ? 401 : 403 });
+      return errorResponse(
+        error!,
+        error === 'Unauthorized' ? 'UNAUTHORIZED' : 'FORBIDDEN',
+        error === 'Unauthorized' ? 401 : 403
+      );
     }
 
     const body = await request.json();
     const result = await practitionerService.create(body);
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
+      return errorResponse(result.error || 'Failed to create practitioner', 'CREATE_ERROR', 400);
     }
 
-    return NextResponse.json(result.data, { status: 201 });
+    return successResponse(result.data, 201);
   } catch (error) {
     console.error('POST /api/admin/practitioners error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }

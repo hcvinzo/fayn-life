@@ -216,6 +216,38 @@ export class PractitionerAssignmentRepository {
     if (error) throw error;
     return (data as any)?.map((item: any) => item.practitioner_id) || [];
   }
+
+  /**
+   * Replace all assignments for an assistant
+   * Deletes existing assignments and creates new ones
+   */
+  async replaceAssignments(
+    assistantId: string,
+    practitionerIds: string[],
+    practiceId: string,
+    createdBy: string
+  ): Promise<PractitionerAssignment[]> {
+    const supabase = await createClient();
+
+    // Step 1: Delete all existing assignments for this assistant
+    await this.deleteByAssistant(assistantId);
+
+    // Step 2: Create new assignments if any practitioner IDs provided
+    if (practitionerIds.length === 0) {
+      return [];
+    }
+
+    const newAssignments: PractitionerAssignmentInsert[] = practitionerIds.map(
+      (practitionerId) => ({
+        assistant_id: assistantId,
+        practitioner_id: practitionerId,
+        practice_id: practiceId,
+        created_by: createdBy,
+      })
+    );
+
+    return await this.createMany(newAssignments);
+  }
 }
 
 // Export singleton instance for server-side use

@@ -16,14 +16,14 @@ interface RouteContext {
   }>
 }
 
-async function getUserPracticeId(supabase: any, userId: string): Promise<string | null> {
+async function getUserProfile(supabase: any, userId: string): Promise<{ practice_id: string; role: string } | null> {
   const { data: profile }: any = await supabase
     .from('profiles')
-    .select('practice_id')
+    .select('practice_id, role')
     .eq('id', userId)
     .single()
 
-  return profile?.practice_id || null
+  return profile?.practice_id ? { practice_id: profile.practice_id, role: profile.role } : null
 }
 
 export async function GET(
@@ -41,13 +41,13 @@ export async function GET(
       return handleApiError(new Error('Unauthorized'), 401)
     }
 
-    const practiceId = await getUserPracticeId(supabase, user.id)
+    const profile = await getUserProfile(supabase, user.id)
 
-    if (!practiceId) {
+    if (!profile) {
       return handleApiError(new Error('User is not associated with a practice'), 403)
     }
 
-    const result = await appointmentService.getAppointmentById(id, practiceId, user.id)
+    const result = await appointmentService.getAppointmentById(id, profile.practice_id, user.id)
 
     if (!result.success) {
       return handleApiError(new Error(result.error || 'Appointment not found'), 404)
@@ -75,13 +75,19 @@ export async function PUT(
       return handleApiError(new Error('Unauthorized'), 401)
     }
 
-    const practiceId = await getUserPracticeId(supabase, user.id)
+    const profile = await getUserProfile(supabase, user.id)
 
-    if (!practiceId) {
+    if (!profile) {
       return handleApiError(new Error('User is not associated with a practice'), 403)
     }
 
-    const result = await appointmentService.updateAppointment(id, practiceId, body, user.id)
+    // Role-based validation for practitioner_id changes
+    // Practitioners cannot reassign appointments to other practitioners
+    if (body.practitioner_id && profile.role === 'practitioner' && body.practitioner_id !== user.id) {
+      return handleApiError(new Error('Practitioners cannot reassign appointments to other practitioners'), 403)
+    }
+
+    const result = await appointmentService.updateAppointment(id, profile.practice_id, body, user.id)
 
     if (!result.success) {
       return handleApiError(new Error(result.error || 'Failed to update appointment'))
@@ -108,13 +114,13 @@ export async function DELETE(
       return handleApiError(new Error('Unauthorized'), 401)
     }
 
-    const practiceId = await getUserPracticeId(supabase, user.id)
+    const profile = await getUserProfile(supabase, user.id)
 
-    if (!practiceId) {
+    if (!profile) {
       return handleApiError(new Error('User is not associated with a practice'), 403)
     }
 
-    const result = await appointmentService.deleteAppointment(id, practiceId, user.id)
+    const result = await appointmentService.deleteAppointment(id, profile.practice_id, user.id)
 
     if (!result.success) {
       return handleApiError(new Error(result.error || 'Failed to delete appointment'))

@@ -90,13 +90,13 @@ export class PractitionerService {
       // Validate input
       const validated = createPractitionerSchema.parse(input);
 
-      // Step 1: Create user in Supabase Auth with a temporary password
-      // Admin will need to send password reset email to the new practitioner
-      const tempPassword = this.generateTemporaryPassword();
+      // Step 1: Create user in Supabase Auth
+      // Use provided password if available, otherwise generate temporary password
+      const password = validated.password || this.generateTemporaryPassword();
 
       const authResult = await this.authRepository.signUpUser({
         email: validated.email,
-        password: tempPassword,
+        password: password,
         fullName: validated.full_name,
       });
 

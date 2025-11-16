@@ -34,14 +34,20 @@ export class AuthorizationService {
       .eq("id", userId)
       .single();
 
-    if (error || !profile || !profile.practice_id) {
+    if (error || !profile) {
+      return null;
+    }
+
+    // Admin users don't need a practice_id (they're system-wide)
+    // Other roles require a practice_id
+    if (profile.role !== "admin" && !profile.practice_id) {
       return null;
     }
 
     const context: AuthorizationContext = {
       userId,
       role: profile.role,
-      practiceId: profile.practice_id,
+      practiceId: profile.practice_id || "", // Empty string for admins
     };
 
     // For assistants, load assigned practitioner IDs

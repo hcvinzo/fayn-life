@@ -32,10 +32,10 @@ export async function GET(request: NextRequest) {
       return handleApiError(new Error('Unauthorized'), 401)
     }
 
-    // Get user's profile to get practice_id
+    // Get user's profile to get practice_id and role
     const { data: profile }: any = await supabase
       .from('profiles')
-      .select('practice_id')
+      .select('practice_id, role')
       .eq('id', user.id)
       .single()
 
@@ -50,10 +50,15 @@ export async function GET(request: NextRequest) {
       end_date: endDate,
     }
 
+    // Get dashboard data with role-based filtering
+    // Practitioners see only their own data
+    // Admins, staff, and assistants see practice-wide data
+    const practitionerId = profile.role === 'practitioner' ? user.id : undefined
+
     // Use different service method based on include_client parameter
     const result = includeClient
-      ? await appointmentService.getAppointmentsWithClient(profile.practice_id, filters, user.id)
-      : await appointmentService.getAppointmentsByPractice(profile.practice_id, filters, user.id)
+      ? await appointmentService.getAppointmentsWithClient(profile.practice_id, filters, user.id, practitionerId)
+      : await appointmentService.getAppointmentsByPractice(profile.practice_id, filters, user.id, practitionerId)
 
     if (!result.success) {
       return handleApiError(new Error(result.error || 'Failed to fetch appointments'))
@@ -77,10 +82,10 @@ export async function POST(request: NextRequest) {
       return handleApiError(new Error('Unauthorized'), 401)
     }
 
-    // Get user's profile to get practice_id
+    // Get user's profile to get practice_id and role
     const { data: profile }: any = await supabase
       .from('profiles')
-      .select('practice_id')
+      .select('practice_id, role')
       .eq('id', user.id)
       .single()
 
@@ -88,9 +93,18 @@ export async function POST(request: NextRequest) {
       return handleApiError(new Error('User is not associated with a practice'), 403)
     }
 
-    // Ensure practice_id matches user's practice and set practitioner_id to current user
+    // Ensure practice_id matches user's practice
     body.practice_id = profile.practice_id
-    body.practitioner_id = user.id
+
+    // Role-based practitioner_id handling:
+    // Practitioners can only create appointments for themselves
+    // Admin/staff/assistants can create for any practitioner (use provided practitioner_id or default to self)
+    if (profile.role === 'practitioner') {
+      body.practitioner_id = user.id
+    } else if (!body.practitioner_id) {
+      // If admin/staff doesn't specify a practitioner_id, default to themselves
+      body.practitioner_id = user.id
+    }
 
     const result = await appointmentService.createAppointment(body, user.id)
 

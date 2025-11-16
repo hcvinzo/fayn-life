@@ -68,12 +68,18 @@ Open http://localhost:3000
 
 1. Click **"Add Assistant"** button
 2. Fill in the form:
-   - **Full Name**: Test Assistant
-   - **Email**: test.assistant@example.com
-   - **Password**: Test123!@#
-   - **Confirm Password**: Test123!@#
+   - **Full Name**: Jane Assistant
+   - **Email**: jane.assistant@gmail.com (or use your own email)
+   - **Password**: SecurePass123!
+   - **Confirm Password**: SecurePass123!
    - **Practice**: Select your practice
    - **Status**: Active
+
+   **⚠️ Important - Email Restrictions:**
+   - Supabase blocks emails containing "test" (e.g., test@example.com, test.assistant@gmail.com)
+   - Supabase blocks the "example.com" domain
+   - Use real-looking emails like: jane.assistant@gmail.com, assistant1@yourdomain.com
+   - Pro tip: Use your own email with a + sign: youremail+assistant1@gmail.com
 
 3. **Assign Practitioners**:
    - After selecting practice, you should see a list of practitioners
@@ -123,8 +129,8 @@ Open http://localhost:3000
 1. Sign out from admin account
 2. Navigate to `/login`
 3. Login with assistant credentials:
-   - Email: test.assistant@example.com
-   - Password: Test123!@#
+   - Email: jane.assistant@gmail.com (use the email you created)
+   - Password: SecurePass123! (use the password you set)
 
 **Expected Result:**
 ✅ Redirected to `/dashboard` (NOT `/admin`)
@@ -222,7 +228,7 @@ Run these queries in Supabase SQL Editor:
 -- 1. Check assistant profile
 SELECT id, email, full_name, role, practice_id
 FROM profiles
-WHERE email = 'test.assistant@example.com';
+WHERE email = 'jane.assistant@gmail.com'; -- Use your assistant email
 
 -- 2. Check practitioner assignments
 SELECT
@@ -232,7 +238,7 @@ SELECT
 FROM practitioner_assignments pa
 JOIN profiles a ON a.id = pa.assistant_id
 JOIN profiles p ON p.id = pa.practitioner_id
-WHERE a.email = 'test.assistant@example.com';
+WHERE a.email = 'jane.assistant@gmail.com'; -- Use your assistant email
 
 -- 3. Check appointments created by assistant
 SELECT
@@ -244,7 +250,7 @@ FROM appointments app
 JOIN clients c ON c.id = app.client_id
 JOIN profiles p ON p.id = app.practitioner_id
 WHERE app.practice_id IN (
-  SELECT practice_id FROM profiles WHERE email = 'test.assistant@example.com'
+  SELECT practice_id FROM profiles WHERE email = 'jane.assistant@gmail.com' -- Use your assistant email
 );
 
 -- 4. Verify RLS policies (as assistant)

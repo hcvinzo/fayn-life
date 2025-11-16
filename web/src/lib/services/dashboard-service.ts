@@ -13,9 +13,10 @@ export class DashboardService {
   /**
    * Get complete dashboard data for a practice
    * @param practiceId - Practice ID
+   * @param practitionerId - Optional practitioner ID for filtering (practitioners see only their own data)
    * @returns Dashboard data with stats and appointments
    */
-  async getDashboardData(practiceId: string): Promise<DashboardData> {
+  async getDashboardData(practiceId: string, practitionerId?: string): Promise<DashboardData> {
     try {
       if (!practiceId) {
         throw new ValidationError('Practice ID is required')
@@ -23,9 +24,9 @@ export class DashboardService {
 
       // Fetch all dashboard data in parallel
       const [stats, todayAppointments, upcomingAppointments] = await Promise.all([
-        dashboardRepository.getStatistics(practiceId),
-        dashboardRepository.getTodayAppointments(practiceId),
-        dashboardRepository.getUpcomingAppointments(practiceId),
+        dashboardRepository.getStatistics(practiceId, practitionerId),
+        dashboardRepository.getTodayAppointments(practiceId, practitionerId),
+        dashboardRepository.getUpcomingAppointments(practiceId, practitionerId),
       ])
 
       return {

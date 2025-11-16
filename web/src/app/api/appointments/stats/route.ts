@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     const { data: profile }: any = await supabase
       .from('profiles')
-      .select('practice_id')
+      .select('practice_id, role')
       .eq('id', user.id)
       .single()
 
@@ -28,7 +28,10 @@ export async function GET(request: NextRequest) {
       return handleApiError(new Error('User is not associated with a practice'), 403)
     }
 
-    const result = await appointmentService.getAppointmentStats(profile.practice_id, user.id)
+    // Role-based filtering: practitioners see only their own stats
+    const practitionerId = profile.role === 'practitioner' ? user.id : undefined
+
+    const result = await appointmentService.getAppointmentStats(profile.practice_id, user.id, practitionerId)
 
     if (!result.success) {
       return handleApiError(new Error(result.error || 'Failed to fetch appointment stats'))

@@ -74,11 +74,35 @@ export class ServerAuthService {
         password: validated.password,
       })
 
-      // Fetch user profile to include role information
+      // Fetch user profile to include role information and check status
       let profile = null
       if (result.user) {
         try {
           profile = await profileRepository.findByUserId(result.user.id)
+
+          // Check if user account is suspended or blocked
+          if (profile && (profile.status === 'suspended' || profile.status === 'blocked')) {
+            // Sign out the user immediately
+            await this.repository.signOut()
+
+            return {
+              success: false,
+              error: profile.status === 'suspended'
+                ? 'Your account has been suspended. Please contact support.'
+                : 'Your account has been blocked. Please contact support.',
+            }
+          }
+
+          // Check if user account is pending activation
+          if (profile && profile.status === 'pending') {
+            // Sign out the user immediately
+            await this.repository.signOut()
+
+            return {
+              success: false,
+              error: 'Your account is pending activation. Please wait for admin approval.',
+            }
+          }
         } catch (error) {
           // Log error but don't fail sign-in if profile fetch fails
           console.error('Failed to fetch user profile:', error)
@@ -353,9 +377,47 @@ export class ClientAuthService {
         password: validated.password,
       })
 
+      // Fetch user profile to check status
+      let profile = null
+      if (result.user) {
+        try {
+          profile = await profileRepository.findByUserId(result.user.id)
+
+          // Check if user account is suspended or blocked
+          if (profile && (profile.status === 'suspended' || profile.status === 'blocked')) {
+            // Sign out the user immediately
+            await this.repository.signOut()
+
+            return {
+              success: false,
+              error: profile.status === 'suspended'
+                ? 'Your account has been suspended. Please contact support.'
+                : 'Your account has been blocked. Please contact support.',
+            }
+          }
+
+          // Check if user account is pending activation
+          if (profile && profile.status === 'pending') {
+            // Sign out the user immediately
+            await this.repository.signOut()
+
+            return {
+              success: false,
+              error: 'Your account is pending activation. Please wait for admin approval.',
+            }
+          }
+        } catch (error) {
+          // Log error but don't fail sign-in if profile fetch fails
+          console.error('Failed to fetch user profile:', error)
+        }
+      }
+
       return {
         success: true,
-        data: result,
+        data: {
+          ...result,
+          profile,
+        },
       }
     } catch (error) {
       if (error instanceof ValidationError) {

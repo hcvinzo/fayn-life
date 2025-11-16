@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PracticeForm } from "@/components/admin/practice-form";
+import { PracticePractitionersManager } from "@/components/admin/practice-practitioners-manager";
 import { adminPracticeApi } from "@/lib/api/practice-api";
 import type { Practice } from "@/types/practice";
 import { ArrowLeft } from "lucide-react";
@@ -94,6 +95,7 @@ export default function EditPracticePage() {
           </p>
         </div>
       </div>
+      {/* Practice Information Form */}
       <PracticeForm
         defaultValues={{
           name: practice.name,
@@ -106,6 +108,9 @@ export default function EditPracticePage() {
         submitLabel="Update Practice"
         isEditMode={true}
       />
+
+      {/* Practitioners Manager */}
+      <PracticePractitionersManager practiceId={id} />
     </div>
   );
 }

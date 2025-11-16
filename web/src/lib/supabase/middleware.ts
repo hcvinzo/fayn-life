@@ -44,6 +44,9 @@ export function createClient(request: NextRequest) {
 /**
  * Updates session and returns user info
  * Now with cleaner separation of concerns
+ *
+ * IMPORTANT: Returns the supabase client to avoid creating duplicate connections
+ * in middleware. Reuse this client for any subsequent queries in the same request.
  */
 export async function updateSession(request: NextRequest) {
   const { supabase, supabaseResponse } = createClient(request);
@@ -53,5 +56,5 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return { supabaseResponse, user };
+  return { supabaseResponse, user, supabase };
 }

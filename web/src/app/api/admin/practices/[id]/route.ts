@@ -3,10 +3,11 @@
  * Admin endpoints for managing individual practices
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { practiceRepository } from '@/lib/repositories/practice-repository';
 import { updatePracticeSchema } from '@/lib/validators/practice';
 import { createClient } from '@/lib/supabase/server';
+import { successResponse, errorResponse, handleApiError } from '@/lib/utils/response';
 
 // Helper to check if user is admin
 async function checkAdminAccess() {
@@ -14,21 +15,21 @@ async function checkAdminAccess() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    return { authorized: false, error: 'Unauthorized' };
+    return { authorized: false, error: 'Unauthorized' } as const;
   }
 
   // Get user profile to check role
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single();
+    .single<{ role: string }>();
 
-  if (!profile || profile.role !== 'admin') {
-    return { authorized: false, error: 'Forbidden: Admin access required' };
+  if (profileError || !profile || profile.role !== 'admin') {
+    return { authorized: false, error: 'Forbidden: Admin access required' } as const;
   }
 
-  return { authorized: true };
+  return { authorized: true } as const;
 }
 
 /**
@@ -43,23 +44,24 @@ export async function GET(
     // Check admin access
     const { authorized, error } = await checkAdminAccess();
     if (!authorized) {
-      return NextResponse.json({ error }, { status: error === 'Unauthorized' ? 401 : 403 });
+      return errorResponse(
+        error!,
+        error === 'Unauthorized' ? 'UNAUTHORIZED' : 'FORBIDDEN',
+        error === 'Unauthorized' ? 401 : 403
+      );
     }
 
     const { id } = await params;
     const practice = await practiceRepository.findById(id);
 
     if (!practice) {
-      return NextResponse.json({ error: 'Practice not found' }, { status: 404 });
+      return errorResponse('Practice not found', 'NOT_FOUND', 404);
     }
 
-    return NextResponse.json(practice);
+    return successResponse(practice);
   } catch (error) {
     console.error('GET /api/admin/practices/[id] error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
 
@@ -75,7 +77,11 @@ export async function PUT(
     // Check admin access
     const { authorized, error } = await checkAdminAccess();
     if (!authorized) {
-      return NextResponse.json({ error }, { status: error === 'Unauthorized' ? 401 : 403 });
+      return errorResponse(
+        error!,
+        error === 'Unauthorized' ? 'UNAUTHORIZED' : 'FORBIDDEN',
+        error === 'Unauthorized' ? 401 : 403
+      );
     }
 
     const { id } = await params;
@@ -86,18 +92,10 @@ export async function PUT(
 
     const practice = await practiceRepository.updatePractice(id, validated);
 
-    return NextResponse.json(practice);
+    return successResponse(practice);
   } catch (error) {
     console.error('PUT /api/admin/practices/[id] error:', error);
-
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
-    }
-
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 400);
   }
 }
 
@@ -113,22 +111,23 @@ export async function DELETE(
     // Check admin access
     const { authorized, error } = await checkAdminAccess();
     if (!authorized) {
-      return NextResponse.json({ error }, { status: error === 'Unauthorized' ? 401 : 403 });
+      return errorResponse(
+        error!,
+        error === 'Unauthorized' ? 'UNAUTHORIZED' : 'FORBIDDEN',
+        error === 'Unauthorized' ? 401 : 403
+      );
     }
 
     const { id } = await params;
     const deleted = await practiceRepository.deletePractice(id);
 
     if (!deleted) {
-      return NextResponse.json({ error: 'Practice not found' }, { status: 404 });
+      return errorResponse('Practice not found', 'NOT_FOUND', 404);
     }
 
-    return NextResponse.json({ message: 'Practice deleted successfully' });
+    return successResponse({ message: 'Practice deleted successfully' });
   } catch (error) {
     console.error('DELETE /api/admin/practices/[id] error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }

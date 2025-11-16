@@ -28,6 +28,9 @@ export const practitionerApi = {
     if (filters?.role) {
       params.append('role', filters.role);
     }
+    if (filters?.practice_id) {
+      params.append('practice_id', filters.practice_id);
+    }
 
     const query = params.toString();
     const url = `/admin/practitioners${query ? `?${query}` : ''}`;

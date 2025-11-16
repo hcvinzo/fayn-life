@@ -38,6 +38,7 @@ export const practitionerFiltersSchema = z.object({
   search: z.string().optional(),
   status: z.union([practitionerStatusSchema, z.literal('all')]).optional(),
   role: z.union([userRoleSchema, z.literal('all')]).optional(),
+  practice_id: z.string().uuid().optional(),
 });
 
 export type CreatePractitionerInput = z.infer<typeof createPractitionerSchema>;

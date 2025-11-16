@@ -292,7 +292,6 @@ export default function PractitionersAdminPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
                 <SelectItem value="practitioner">Practitioner</SelectItem>
                 <SelectItem value="staff">Staff</SelectItem>
               </SelectContent>

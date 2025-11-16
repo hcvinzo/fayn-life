@@ -1,14 +1,13 @@
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 
 /**
  * Middleware to protect routes and manage authentication
  * Runs on every request to specified paths
  */
 export async function middleware(request: NextRequest) {
-  const { supabaseResponse, user } = await updateSession(request);
+  const { supabaseResponse, user, supabase } = await updateSession(request);
 
   const { pathname } = request.nextUrl;
 
@@ -20,7 +19,7 @@ export async function middleware(request: NextRequest) {
   if (isPublicRoute && user) {
     // Check user role to determine where to redirect
     try {
-      const supabase = await createClient();
+      // REUSE the supabase client from updateSession() to avoid creating duplicate connections
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -47,7 +46,7 @@ export async function middleware(request: NextRequest) {
   // Admin routes - check if user has admin role
   if (pathname.startsWith('/admin') && user) {
     try {
-      const supabase = await createClient();
+      // REUSE the supabase client from updateSession() to avoid creating duplicate connections
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')

@@ -9,6 +9,7 @@ import type { Practitioner, PractitionerWithPractice, PractitionerFilters } from
 export class PractitionerRepository {
   /**
    * Get all practitioners with optional filters
+   * By default, excludes admin and assistant roles (those have separate pages)
    */
   async findAll(filters?: PractitionerFilters): Promise<PractitionerWithPractice[]> {
     const supabase = await createClient();
@@ -35,6 +36,13 @@ export class PractitionerRepository {
 
     if (filters?.role && filters.role !== 'all') {
       query = query.eq('role', filters.role);
+    } else {
+      // Default: only show practitioner and staff roles (exclude admin and assistant)
+      query = query.in('role', ['practitioner', 'staff']);
+    }
+
+    if (filters?.practice_id) {
+      query = query.eq('practice_id', filters.practice_id);
     }
 
     const { data, error } = await query;

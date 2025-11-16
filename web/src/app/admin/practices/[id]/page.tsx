@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { adminPracticeApi } from "@/lib/api/practice-api";
+import { practitionerApi } from "@/lib/api/practitioner-api";
 import type { Practice } from "@/types/practice";
-import { ArrowLeft, Edit, Mail, Phone, MapPin, Trash2, Loader2, Building2 } from "lucide-react";
+import type { PractitionerWithPractice } from "@/types/practitioner";
+import { ArrowLeft, Edit, Mail, Phone, MapPin, Trash2, Loader2, Building2, Users, Eye } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,19 +17,27 @@ export default function PracticeDetailsPage() {
   const id = params.id as string;
 
   const [practice, setPractice] = useState<Practice | null>(null);
+  const [practitioners, setPractitioners] = useState<PractitionerWithPractice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [navigatingToEdit, setNavigatingToEdit] = useState(false);
 
   useEffect(() => {
-    const fetchPractice = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await adminPracticeApi.getById(id);
-        setPractice(data);
+
+        // Fetch practice details and practitioners in parallel
+        const [practiceData, practitionersData] = await Promise.all([
+          adminPracticeApi.getById(id),
+          practitionerApi.getAll({ practice_id: id }),
+        ]);
+
+        setPractice(practiceData);
+        setPractitioners(practitionersData);
       } catch (err) {
-        console.error("Error fetching practice:", err);
+        console.error("Error fetching practice data:", err);
         setError(err instanceof Error ? err.message : "Failed to load practice");
       } finally {
         setLoading(false);
@@ -35,7 +45,7 @@ export default function PracticeDetailsPage() {
     };
 
     if (id) {
-      fetchPractice();
+      fetchData();
     }
   }, [id]);
 
@@ -154,7 +164,7 @@ export default function PracticeDetailsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Practice Information</CardTitle>
@@ -222,6 +232,72 @@ export default function PracticeDetailsPage() {
                   </span>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Assigned Practitioners */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Assigned Practitioners ({practitioners.length})
+              </CardTitle>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Practitioners and staff members assigned to this practice
+              </p>
+            </CardHeader>
+            <CardContent>
+              {practitioners.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    No practitioners assigned yet
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                    Click "Edit" to assign practitioners to this practice
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {practitioners.map((practitioner) => (
+                    <div
+                      key={practitioner.id}
+                      className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                          <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {practitioner.full_name || "Unnamed"}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {practitioner.email}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            practitioner.role === "practitioner"
+                              ? "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400"
+                              : "bg-cyan-100 dark:bg-cyan-900/20 text-cyan-800 dark:text-cyan-400"
+                          }`}
+                        >
+                          {practitioner.role.charAt(0).toUpperCase() + practitioner.role.slice(1)}
+                        </span>
+                        <Link
+                          href={`/admin/practitioners/${practitioner.id}`}
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                          title="View practitioner"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
